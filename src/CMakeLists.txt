@@ -23,6 +23,7 @@ set(SOURCES
 	main.cpp
 	Camera.cpp
 	CameraManager.cpp
+	V4L2ToXen.cpp
 )
 
 ################################################################################
