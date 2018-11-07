@@ -21,7 +21,9 @@ include_directories(
 
 set(SOURCES
 	main.cpp
+	Backend.cpp
 	Camera.cpp
+	CommandHandler.cpp
 	CameraManager.cpp
 	V4L2ToXen.cpp
 )
