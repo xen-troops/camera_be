@@ -199,7 +199,24 @@ void CommandHandler::bufDequeue(const xencamera_req& aReq,
 void CommandHandler::ctrlEnum(const xencamera_req& aReq,
                               xencamera_resp& aResp)
 {
+    const xencamera_index *req = &aReq.req.index;
+    xencamera_ctrl_enum_resp *resp = &aResp.resp.ctrl_enum;
+
     DLOG(mLog, DEBUG) << "Handle command [CTRL ENUM]";
+
+    if (req->index >= mCameraControls.size())
+        throw XenBackend::Exception("No more assigned controls", EINVAL);
+
+    auto info = mCamera->controlGetInfo(mCameraControls[req->index].name);
+
+    mCameraControls[req->index].v4l2_cid = info.v4l2_cid;
+    resp->index = req->index;
+    resp->type = V4L2ToXen::ctrlToXen(info.v4l2_cid);
+    resp->flags = V4L2ToXen::ctrlFlagsToXen(info.flags);
+    resp->min = info.minimum;
+    resp->max = info.maximum;
+    resp->step = info.step;
+    resp->def_val = info.default_value;
 }
 
 void CommandHandler::ctrlSet(const xencamera_req& aReq,
