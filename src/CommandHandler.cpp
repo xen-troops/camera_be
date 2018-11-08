@@ -148,16 +148,66 @@ int CommandHandler::processCommand(const xencamera_req& req,
     return status;
 }
 
+void CommandHandler::configToXen(xencamera_config *cfg)
+{
+    v4l2_format fmt = mCamera->formatGet();
+
+    cfg->pixel_format = fmt.fmt.pix.pixelformat;
+    cfg->width = fmt.fmt.pix.width;
+    cfg->height = fmt.fmt.pix.height;
+
+    cfg->colorspace = V4L2ToXen::colorspaceToXen(fmt.fmt.pix.colorspace);
+
+    cfg->xfer_func = V4L2ToXen::xferToXen(fmt.fmt.pix.xfer_func);
+
+    cfg->ycbcr_enc = V4L2ToXen::ycbcrToXen(fmt.fmt.pix.ycbcr_enc);
+
+    cfg->quantization = V4L2ToXen::quantizationToXen(fmt.fmt.pix.quantization);
+
+    /* TODO: This needs to be properly handled. */
+    cfg->displ_asp_ratio_numer = 1;
+    cfg->displ_asp_ratio_denom = 1;
+
+    v4l2_fract frameRate = mCamera->frameRateGet();
+
+    cfg->frame_rate_numer = frameRate.numerator;
+    cfg->frame_rate_denom = frameRate.denominator;
+}
+
 void CommandHandler::configSet(const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
+    const xencamera_config *req = &aReq.req.config;
+
     DLOG(mLog, DEBUG) << "Handle command [CONFIG SET]";
+
+    v4l2_format fmt {0};
+
+    fmt.fmt.pix.pixelformat = req->pixel_format;
+    fmt.fmt.pix.width = req->width;
+    fmt.fmt.pix.height = req->height;
+
+    fmt.fmt.pix.colorspace = V4L2ToXen::colorspaceToV4L2(req->colorspace);
+
+    fmt.fmt.pix.xfer_func = V4L2ToXen::xferToV4L2(req->xfer_func);
+
+    fmt.fmt.pix.ycbcr_enc = V4L2ToXen::ycbcrToV4L2(req->ycbcr_enc);
+
+    fmt.fmt.pix.quantization = V4L2ToXen::quantizationToV4L2(req->quantization);
+
+    mCamera->formatSet(fmt);
+
+    mCamera->frameRateSet(req->frame_rate_numer, req->frame_rate_denom);
+
+    configToXen(&aResp.resp.config);
 }
 
 void CommandHandler::configGet(const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
     DLOG(mLog, DEBUG) << "Handle command [CONFIG GET]";
+
+    configToXen(&aResp.resp.config);
 }
 
 void CommandHandler::bufGetLayout(const xencamera_req& aReq,
