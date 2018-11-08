@@ -65,6 +65,7 @@ private:
     void init(std::string ctrls);
     void release();
 
+    void configToXen(xencamera_config *cfg);
     void configSet(const xencamera_req& aReq, xencamera_resp& aResp);
     void configGet(const xencamera_req& aReq, xencamera_resp& aResp);
 
