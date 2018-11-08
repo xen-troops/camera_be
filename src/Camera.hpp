@@ -70,9 +70,9 @@ public:
         signed int step;
     };
 
-    ControlInfo controlGetInfo(std::string name);
-    void controlSetValue(int v4l2_cid, signed int value);
-    void controlGetValue(int v4l2_cid, signed int *value);
+    ControlInfo controlEnum(std::string name);
+    void controlSetValue(std::string name, signed int value);
+    void controlGetValue(std::string name, signed int *value);
 
 protected:
     XenBackend::Log mLog;
@@ -138,11 +138,11 @@ protected:
     std::vector<ControlInfo> mControls;
 
     void controlEnumerate();
+    void controlGetValue(int v4l2_cid, signed int *value);
 
     void eventThread();
 };
 
 typedef std::shared_ptr<Camera> CameraPtr;
-typedef std::weak_ptr<Camera> CameraWeakPtr;
 
 #endif /* SRC_CAMERA_HPP_ */

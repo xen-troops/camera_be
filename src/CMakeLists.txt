@@ -23,8 +23,9 @@ set(SOURCES
 	main.cpp
 	Backend.cpp
 	Camera.cpp
-	CommandHandler.cpp
+	CameraHandler.cpp
 	CameraManager.cpp
+	CommandHandler.cpp
 	V4L2ToXen.cpp
 )
 

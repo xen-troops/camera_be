@@ -21,26 +21,26 @@ CameraManager::~CameraManager()
 {
 }
 
-CameraPtr CameraManager::getNewCamera(const std::string devName)
+CameraHandlerPtr CameraManager::getNewCameraHandler(const std::string devName)
 {
-        return CameraPtr(new Camera(devName));
+    return CameraHandlerPtr(new CameraHandler(devName));
 }
 
-CameraPtr CameraManager::getCamera(std::string uniqueId)
+CameraHandlerPtr CameraManager::getCameraHandler(std::string uniqueId)
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    auto it = mCameras.find(uniqueId);
+    auto it = mCameraHandlers.find(uniqueId);
 
-    if (it != mCameras.end())
-        if (auto camera = it->second.lock())
-            return camera;
+    if (it != mCameraHandlers.end())
+        if (auto cameraHandler = it->second.lock())
+            return cameraHandler;
 
-    /* This camera is not on the list yet - create now. */
-    auto camera = getNewCamera(uniqueId);
+    /* This camera handler is not on the list yet - create now. */
+    auto cameraHandler = getNewCameraHandler(uniqueId);
 
-    mCameras[uniqueId] = camera;
+    mCameraHandlers[uniqueId] = cameraHandler;
 
-    return camera;
+    return cameraHandler;
 }
 

@@ -36,10 +36,10 @@ CtrlRingBuffer::CtrlRingBuffer(EventRingBufferPtr eventBuffer,
                                domid_t domId, evtchn_port_t port,
                                grant_ref_t ref,
                                std::string ctrls,
-                               CameraPtr camera) :
+                               CameraHandlerPtr cameraHandler) :
     RingBufferInBase<xen_cameraif_back_ring, xen_cameraif_sring,
                      xencamera_req, xencamera_resp>(domId, port, ref),
-    mCommandHandler(eventBuffer, ctrls, camera),
+    mCommandHandler(domId, eventBuffer, ctrls, cameraHandler),
     mLog("CamCtrlRing")
 {
     LOG(mLog, DEBUG) << "Create ctrl ring buffer";
@@ -69,11 +69,13 @@ EventRingBuffer::EventRingBuffer(domid_t domId, evtchn_port_t port,
     LOG(mLog, DEBUG) << "Create event ring buffer";
 }
 
-CommandHandler::CommandHandler(EventRingBufferPtr eventBuffer,
+CommandHandler::CommandHandler(domid_t domId,
+                               EventRingBufferPtr eventBuffer,
                                std::string ctrls,
-                               CameraPtr camera) :
+                               CameraHandlerPtr cameraHandler) :
+    mDomId(domId),
     mEventBuffer(eventBuffer),
-    mCamera(camera),
+    mCameraHandler(cameraHandler),
     mLog("CommandHandler")
 {
     LOG(mLog, DEBUG) << "Create command handler";
@@ -97,9 +99,7 @@ void CommandHandler::init(std::string ctrls)
     std::string item;
 
     while (std::getline(ss, item, XENCAMERA_LIST_SEPARATOR[0]))
-        mCameraControls.push_back(CameraControl {
-                                  .name = item,
-                                  .v4l2_cid = -1});
+        mControls.push_back(item);
 }
 
 void CommandHandler::release()
@@ -148,169 +148,143 @@ int CommandHandler::processCommand(const xencamera_req& req,
     return status;
 }
 
-void CommandHandler::configToXen(xencamera_config *cfg)
+void CommandHandler::configSet(const xencamera_req& req,
+                               xencamera_resp& resp)
 {
-    v4l2_format fmt = mCamera->formatGet();
-
-    cfg->pixel_format = fmt.fmt.pix.pixelformat;
-    cfg->width = fmt.fmt.pix.width;
-    cfg->height = fmt.fmt.pix.height;
-
-    cfg->colorspace = V4L2ToXen::colorspaceToXen(fmt.fmt.pix.colorspace);
-
-    cfg->xfer_func = V4L2ToXen::xferToXen(fmt.fmt.pix.xfer_func);
-
-    cfg->ycbcr_enc = V4L2ToXen::ycbcrToXen(fmt.fmt.pix.ycbcr_enc);
-
-    cfg->quantization = V4L2ToXen::quantizationToXen(fmt.fmt.pix.quantization);
-
-    /* TODO: This needs to be properly handled. */
-    cfg->displ_asp_ratio_numer = 1;
-    cfg->displ_asp_ratio_denom = 1;
-
-    v4l2_fract frameRate = mCamera->frameRateGet();
-
-    cfg->frame_rate_numer = frameRate.numerator;
-    cfg->frame_rate_denom = frameRate.denominator;
-}
-
-void CommandHandler::configSet(const xencamera_req& aReq,
-                               xencamera_resp& aResp)
-{
-    const xencamera_config *req = &aReq.req.config;
-
     DLOG(mLog, DEBUG) << "Handle command [CONFIG SET]";
 
-    v4l2_format fmt {0};
-
-    fmt.fmt.pix.pixelformat = req->pixel_format;
-    fmt.fmt.pix.width = req->width;
-    fmt.fmt.pix.height = req->height;
-
-    fmt.fmt.pix.colorspace = V4L2ToXen::colorspaceToV4L2(req->colorspace);
-
-    fmt.fmt.pix.xfer_func = V4L2ToXen::xferToV4L2(req->xfer_func);
-
-    fmt.fmt.pix.ycbcr_enc = V4L2ToXen::ycbcrToV4L2(req->ycbcr_enc);
-
-    fmt.fmt.pix.quantization = V4L2ToXen::quantizationToV4L2(req->quantization);
-
-    mCamera->formatSet(fmt);
-
-    mCamera->frameRateSet(req->frame_rate_numer, req->frame_rate_denom);
-
-    configToXen(&aResp.resp.config);
+    mCameraHandler->configSet(req, resp);
 }
 
-void CommandHandler::configGet(const xencamera_req& aReq,
-                               xencamera_resp& aResp)
+void CommandHandler::configGet(const xencamera_req& req,
+                               xencamera_resp& resp)
 {
     DLOG(mLog, DEBUG) << "Handle command [CONFIG GET]";
 
-    configToXen(&aResp.resp.config);
+    mCameraHandler->configGet(req, resp);
 }
 
-void CommandHandler::bufGetLayout(const xencamera_req& aReq,
-                                  xencamera_resp& aResp)
+void CommandHandler::bufGetLayout(const xencamera_req& req,
+                                  xencamera_resp& resp)
 {
-    xencamera_buf_get_layout_resp *resp = &aResp.resp.buf_layout;
-
     DLOG(mLog, DEBUG) << "Handle command [BUF GET LAYOUT]";
 
-    v4l2_format fmt = mCamera->formatGet();
-
-    DLOG(mLog, DEBUG) << "Handle command [BUF GET LAYOUT] size " <<
-        fmt.fmt.pix.sizeimage;
-
-    /* XXX: Single plane only. */
-    resp->num_planes = 1;
-    resp->size = fmt.fmt.pix.sizeimage;
-    resp->plane_size[0] = fmt.fmt.pix.sizeimage;
-    resp->plane_stride[0] = fmt.fmt.pix.bytesperline;
+    mCameraHandler->bufGetLayout(req, resp);
 }
 
-void CommandHandler::bufRequest(const xencamera_req& aReq,
-                                xencamera_resp& aResp)
+void CommandHandler::bufRequest(const xencamera_req& req,
+                                xencamera_resp& resp)
 {
-    const xencamera_buf_request *req = &aReq.req.buf_request;
-    xencamera_buf_request *resp = &aResp.resp.buf_request;
-
     DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST]";
 
-    resp->num_bufs = mCamera->bufferRequest(req->num_bufs);
-
-    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] num_bufs " <<
-        std::to_string(resp->num_bufs);
+    mCameraHandler->bufRequest(req, resp, mDomId);
 }
 
-void CommandHandler::bufCreate(const xencamera_req& aReq,
-                               xencamera_resp& aResp)
+void CommandHandler::bufCreate(const xencamera_req& req,
+                               xencamera_resp& resp)
 {
-    DLOG(mLog, DEBUG) << "Handle command [BUF CREATE]";
+    const xencamera_buf_create_req *create = &req.req.buf_create;
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF CREATE] index " <<
+        std::to_string(create->index) << " offset " <<
+        std::to_string(create->plane_offset[0]);
+
+    mCameraHandler->bufCreate(req, resp, mDomId);
 }
 
-void CommandHandler::bufDestroy(const xencamera_req& aReq,
-                                xencamera_resp& aResp)
+void CommandHandler::bufDestroy(const xencamera_req& req,
+                                xencamera_resp& resp)
 {
-    DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY]";
+    size_t index = static_cast<size_t>(req.req.index.index);
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY] index " <<
+        std::to_string(index);
+
+    mCameraHandler->bufDestroy(req, resp, mDomId);
 }
 
-void CommandHandler::bufQueue(const xencamera_req& aReq,
-                              xencamera_resp& aResp)
+void CommandHandler::bufQueue(const xencamera_req& req,
+                              xencamera_resp& resp)
 {
-    DLOG(mLog, DEBUG) << "Handle command [BUF QUEUE]";
+    size_t index = static_cast<size_t>(req.req.index.index);
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF QUEUE] index " <<
+        std::to_string(index);
+
+    mCameraHandler->bufQueue(req, resp, mDomId);
 }
 
-void CommandHandler::bufDequeue(const xencamera_req& aReq,
-                                xencamera_resp& aResp)
+void CommandHandler::bufDequeue(const xencamera_req& req,
+                                xencamera_resp& resp)
 {
-    DLOG(mLog, DEBUG) << "Handle command [BUF DEQUEUE] front";
+    size_t index = static_cast<size_t>(req.req.index.index);
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF DEQUEUE] index " <<
+        std::to_string(index);
+
+    mCameraHandler->bufDequeue(req, resp, mDomId);
 }
 
-void CommandHandler::ctrlEnum(const xencamera_req& aReq,
-                              xencamera_resp& aResp)
+void CommandHandler::ctrlEnum(const xencamera_req& req,
+                              xencamera_resp& resp)
 {
-    const xencamera_index *req = &aReq.req.index;
-    xencamera_ctrl_enum_resp *resp = &aResp.resp.ctrl_enum;
+    size_t index = static_cast<size_t>(req.req.index.index);
 
     DLOG(mLog, DEBUG) << "Handle command [CTRL ENUM]";
 
-    if (req->index >= mCameraControls.size())
+    /*
+     * The index of the control we have in the request is frontend
+     * related, e.g. it is in the range of the assigned controls to
+     * this domain. Thus, we have to control control's index to be within
+     * the assigned range.
+     */
+    if (index >= mControls.size())
         throw XenBackend::Exception("No more assigned controls", EINVAL);
 
-    auto info = mCamera->controlGetInfo(mCameraControls[req->index].name);
-
-    mCameraControls[req->index].v4l2_cid = info.v4l2_cid;
-    resp->index = req->index;
-    resp->type = V4L2ToXen::ctrlToXen(info.v4l2_cid);
-    resp->flags = V4L2ToXen::ctrlFlagsToXen(info.flags);
-    resp->min = info.minimum;
-    resp->max = info.maximum;
-    resp->step = info.step;
-    resp->def_val = info.default_value;
+    mCameraHandler->ctrlEnum(req, resp, mControls[index]);
 }
 
-void CommandHandler::ctrlSet(const xencamera_req& aReq,
-                             xencamera_resp& aResp)
+void CommandHandler::ctrlSet(const xencamera_req& req,
+                             xencamera_resp& resp)
 {
+    size_t index = static_cast<size_t>(req.req.index.index);
+
     DLOG(mLog, DEBUG) << "Handle command [SET CTRL]";
+
+    if (index >= mControls.size())
+        throw XenBackend::Exception("Wrong control index " +
+                                    std::to_string(index), EINVAL);
+
+    mCameraHandler->ctrlSet(req, resp, mControls[index]);
 }
 
-void CommandHandler::ctrlGet(const xencamera_req& aReq,
-                             xencamera_resp& aResp)
+void CommandHandler::ctrlGet(const xencamera_req& req,
+                             xencamera_resp& resp)
 {
+    size_t index = static_cast<size_t>(req.req.index.index);
+
     DLOG(mLog, DEBUG) << "Handle command [GET CTRL]";
+
+    if (index >= mControls.size())
+        throw XenBackend::Exception("Wrong control index " +
+                                    std::to_string(index), EINVAL);
+
+    mCameraHandler->ctrlGet(req, resp, mControls[index]);
 }
 
-void CommandHandler::streamStart(const xencamera_req& aReq,
-                                 xencamera_resp& aResp)
+void CommandHandler::streamStart(const xencamera_req& req,
+                                 xencamera_resp& resp)
 {
     DLOG(mLog, DEBUG) << "Handle command [STREAM START]";
+
+    mCameraHandler->streamStart(req, resp);
 }
 
-void CommandHandler::streamStop(const xencamera_req& aReq,
-                                xencamera_resp& aResp)
+void CommandHandler::streamStop(const xencamera_req& req,
+                                xencamera_resp& resp)
 {
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP]";
+
+    mCameraHandler->streamStop(req, resp);
 }
 
