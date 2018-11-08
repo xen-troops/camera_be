@@ -213,7 +213,20 @@ void CommandHandler::configGet(const xencamera_req& aReq,
 void CommandHandler::bufGetLayout(const xencamera_req& aReq,
                                   xencamera_resp& aResp)
 {
+    xencamera_buf_get_layout_resp *resp = &aResp.resp.buf_layout;
+
     DLOG(mLog, DEBUG) << "Handle command [BUF GET LAYOUT]";
+
+    v4l2_format fmt = mCamera->formatGet();
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF GET LAYOUT] size " <<
+        fmt.fmt.pix.sizeimage;
+
+    /* XXX: Single plane only. */
+    resp->num_planes = 1;
+    resp->size = fmt.fmt.pix.sizeimage;
+    resp->plane_size[0] = fmt.fmt.pix.sizeimage;
+    resp->plane_stride[0] = fmt.fmt.pix.bytesperline;
 }
 
 void CommandHandler::bufRequest(const xencamera_req& aReq,
