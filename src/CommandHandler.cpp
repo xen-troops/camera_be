@@ -232,7 +232,15 @@ void CommandHandler::bufGetLayout(const xencamera_req& aReq,
 void CommandHandler::bufRequest(const xencamera_req& aReq,
                                 xencamera_resp& aResp)
 {
-    DLOG(mLog, DEBUG) << "Handle command [BUF aReqUEST]";
+    const xencamera_buf_request *req = &aReq.req.buf_request;
+    xencamera_buf_request *resp = &aResp.resp.buf_request;
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST]";
+
+    resp->num_bufs = mCamera->bufferRequest(req->num_bufs);
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] num_bufs " <<
+        std::to_string(resp->num_bufs);
 }
 
 void CommandHandler::bufCreate(const xencamera_req& aReq,
