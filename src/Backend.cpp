@@ -45,7 +45,7 @@ void CameraFrontendHandler::onBind()
     auto controls = getXenStore().readString(camBasePath +
                                              XENCAMERA_FIELD_CONTROLS);
 
-    mCamera = mCameraManager->getCamera(uniqueId);
+    mCameraHandler = mCameraManager->getCameraHandler(uniqueId);
 
     EventRingBufferPtr eventRingBuffer(new EventRingBuffer(getDomId(),
                                                            evt_port,
@@ -60,14 +60,14 @@ void CameraFrontendHandler::onBind()
                                                         req_port,
                                                         req_ref,
                                                         controls,
-                                                        mCamera));
+                                                        mCameraHandler));
 
     addRingBuffer(ctrlRingBuffer);
 }
 
 void CameraFrontendHandler::onStateClosed()
 {
-    mCamera.reset();
+    mCameraHandler.reset();
 }
 
 Backend::Backend(const string& deviceName) :

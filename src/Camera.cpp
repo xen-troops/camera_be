@@ -532,7 +532,7 @@ void Camera::controlEnumerate()
                         mDevPath, errno);
 }
 
-Camera::ControlInfo Camera::controlGetInfo(std::string name)
+Camera::ControlInfo Camera::controlEnum(std::string name)
 {
     int v4l2_cid;
 
@@ -548,6 +548,7 @@ Camera::ControlInfo Camera::controlGetInfo(std::string name)
         throw Exception("Wrong control name " + name + " for device " +
                         mDevPath, EINVAL);
 
+    /* Check if this control is supported by the HW. */
     for (auto const& ctrl: mControls)
         if (ctrl.v4l2_cid == v4l2_cid)
             return ctrl;
@@ -556,11 +557,13 @@ Camera::ControlInfo Camera::controlGetInfo(std::string name)
                     mDevPath, EINVAL);
 }
 
-void Camera::controlSetValue(int v4l2_cid, signed int value)
+void Camera::controlSetValue(std::string name, signed int value)
 {
     v4l2_control control {0};
 
-    control.id = v4l2_cid;
+    auto ctrl = controlEnum(name);
+
+    control.id = ctrl.v4l2_cid;
     control.value = value;
 
     if (xioctl(VIDIOC_S_CTRL, &control) < 0)
@@ -578,5 +581,12 @@ void Camera::controlGetValue(int v4l2_cid, signed int *value)
         throw Exception("Failed to call [VIDIOC_G_CTRL] for device " +
                         mDevPath, errno);
     *value = control.value;
+}
+
+void Camera::controlGetValue(std::string name, signed int *value)
+{
+    auto ctrl = controlEnum(name);
+
+    controlGetValue(ctrl.v4l2_cid, value);
 }
 

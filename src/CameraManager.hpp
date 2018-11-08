@@ -12,7 +12,7 @@
 
 #include <xen/be/Log.hpp>
 
-#include "Camera.hpp"
+#include "CameraHandler.hpp"
 
 class CameraManager
 {
@@ -20,15 +20,15 @@ public:
     CameraManager();
     ~CameraManager();
 
-    CameraPtr getCamera(std::string uniqueId);
+    CameraHandlerPtr getCameraHandler(std::string uniqueId);
 
 private:
     XenBackend::Log mLog;
     std::mutex mLock;
 
-    std::unordered_map<std::string, CameraWeakPtr> mCameras;
+    std::unordered_map<std::string, CameraHandlerWeakPtr> mCameraHandlers;
 
-    CameraPtr getNewCamera(const std::string devName);
+    CameraHandlerPtr getNewCameraHandler(const std::string devName);
 };
 
 typedef std::shared_ptr<CameraManager> CameraManagerPtr;

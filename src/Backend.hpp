@@ -40,7 +40,7 @@ private:
     XenBackend::Log mLog;
 
     CameraManagerPtr mCameraManager;
-    CameraPtr mCamera;
+    CameraHandlerPtr mCameraHandler;
 };
 
 class Backend : public XenBackend::BackendBase
