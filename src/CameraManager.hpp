@@ -5,8 +5,8 @@
  *
  * Copyright (C) 2018 EPAM Systems Inc.
  */
-#ifndef SRC_CAMERAMANGER_HPP_
-#define SRC_CAMERAMANGER_HPP_
+#ifndef SRC_CAMERAMANAGER_HPP_
+#define SRC_CAMERAMANAGER_HPP_
 
 #include <unordered_map>
 
@@ -33,4 +33,4 @@ private:
 
 typedef std::shared_ptr<CameraManager> CameraManagerPtr;
 
-#endif /* SRC_CAMERAMANGER_HPP_ */
+#endif /* SRC_CAMERAMANAGER_HPP_ */
