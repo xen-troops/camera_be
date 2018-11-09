@@ -31,6 +31,8 @@ CameraHandler::CameraHandler(std::string uniqueId) :
 CameraHandler::~CameraHandler()
 {
     LOG(mLog, DEBUG) << "Delete camera handler";
+
+    release();
 }
 
 void CameraHandler::init(std::string uniqueId)
@@ -143,6 +145,10 @@ void CameraHandler::bufCreate(const xencamera_req& aReq,
 {
     DLOG(mLog, DEBUG) << "Handle command [BUF CREATE] domId " <<
         std::to_string(domId);
+
+    v4l2_format fmt = mCamera->formatGet();
+
+    mBuffers.emplace(domId, new FrontendBuffer(domId, fmt.fmt.pix.sizeimage, aReq));
 }
 
 void CameraHandler::bufDestroy(const xencamera_req& aReq,

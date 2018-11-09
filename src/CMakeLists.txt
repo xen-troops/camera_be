@@ -26,6 +26,7 @@ set(SOURCES
 	CameraHandler.cpp
 	CameraManager.cpp
 	CommandHandler.cpp
+	FrontendBuffer.cpp
 	V4L2ToXen.cpp
 )
 

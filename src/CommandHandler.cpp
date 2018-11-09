@@ -91,6 +91,8 @@ CommandHandler::CommandHandler(domid_t domId,
 CommandHandler::~CommandHandler()
 {
     LOG(mLog, DEBUG) << "Delete command handler";
+
+    release();
 }
 
 void CommandHandler::init(std::string ctrls)

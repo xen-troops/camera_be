@@ -8,12 +8,15 @@
 #ifndef SRC_CAMERAHANDLER_HPP_
 #define SRC_CAMERAHANDLER_HPP_
 
+#include <unordered_map>
+
 #include <xen/be/Log.hpp>
 #include <xen/be/Utils.hpp>
 
 #include <xen/io/cameraif.h>
 
 #include "Camera.hpp"
+#include "FrontendBuffer.hpp"
 
 class CameraHandler
 {
@@ -51,6 +54,8 @@ private:
     XenBackend::Log mLog;
 
     CameraPtr mCamera;
+
+    std::unordered_map<int, FrontendBufferPtr> mBuffers;
 
     void init(std::string uniqueId);
     void release();
