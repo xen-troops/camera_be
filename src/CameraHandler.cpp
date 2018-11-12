@@ -154,8 +154,20 @@ void CameraHandler::bufCreate(const xencamera_req& aReq,
 void CameraHandler::bufDestroy(const xencamera_req& aReq,
                                xencamera_resp& aResp, domid_t domId)
 {
+    const xencamera_index *req = &aReq.req.index;
+
     DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY] domId " <<
         std::to_string(domId);
+
+    for (auto it = mBuffers.begin(); it != mBuffers.end(); ++it) {
+        if (it->first != domId)
+            continue;
+
+        if (it->second->getIndex() == req->index) {
+            mBuffers.erase(it);
+            break;
+        }
+    }
 }
 
 void CameraHandler::bufQueue(const xencamera_req& aReq,
