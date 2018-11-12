@@ -30,7 +30,6 @@ Camera::Camera(const std::string devName):
     mUniqueId(devName),
     mDevPath("/dev/" + devName),
     mFd(-1),
-    mMemoryType(V4L2_MEMORY_MMAP),
     mStreamStarted(false),
     mFrameDoneCallback(nullptr)
 {
@@ -195,7 +194,7 @@ int Camera::bufferRequest(int numBuffers)
 
     req.count = numBuffers;
     req.type = cV4L2BufType;
-    req.memory = mMemoryType;
+    req.memory = cMemoryType;
 
     if (xioctl(VIDIOC_REQBUFS, &req) < 0)
         throw Exception("Failed to call [VIDIOC_REQBUFS] for device " +
@@ -212,7 +211,7 @@ v4l2_buffer Camera::bufferQuery(int index)
     v4l2_buffer buf {0};
 
     buf.type = cV4L2BufType;
-    buf.memory = mMemoryType;
+    buf.memory = cMemoryType;
     buf.index = index;
 
     if (xioctl(VIDIOC_QUERYBUF, &buf) < 0)
@@ -227,7 +226,7 @@ void Camera::bufferQueue(int index)
     v4l2_buffer buf {0};
 
     buf.type = cV4L2BufType;
-    buf.memory = mMemoryType;
+    buf.memory = cMemoryType;
     buf.index = index;
 
     if (xioctl(VIDIOC_QBUF, &buf) < 0)
@@ -240,7 +239,7 @@ v4l2_buffer Camera::bufferDequeue()
     v4l2_buffer buf {0};
 
     buf.type = cV4L2BufType;
-    buf.memory = mMemoryType;
+    buf.memory = cMemoryType;
 
     if (xioctl(VIDIOC_DQBUF, &buf) < 0)
         throw Exception("Failed to call [VIDIOC_DQBUF] for device " +
