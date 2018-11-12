@@ -21,6 +21,10 @@ public:
     FrontendBuffer(domid_t domId, size_t size, const xencamera_req& req);
     ~FrontendBuffer();
 
+    int getIndex() {
+        return mIndex;
+    }
+
 private:
     XenBackend::Log mLog;
     std::mutex mLock;
