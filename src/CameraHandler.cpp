@@ -157,7 +157,7 @@ void CameraHandler::bufDestroy(const xencamera_req& aReq,
     const xencamera_index *req = &aReq.req.index;
 
     DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY] domId " <<
-        std::to_string(domId);
+        std::to_string(domId) << " index " << std::to_string(req->index);
 
     for (auto it = mBuffers.begin(); it != mBuffers.end(); ++it) {
         if (it->first != domId)
