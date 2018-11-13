@@ -90,3 +90,11 @@ void FrontendBuffer::getBufferRefs(grant_ref_t startDirectory, uint32_t size,
 
     DLOG(mLog, DEBUG) << "Get buffer refs, num refs: " << refs.size();
 }
+
+void FrontendBuffer::copyBuffer(void *data, size_t size)
+{
+    DLOG(mLog, DEBUG) << "Copy, size: " << size;
+
+    memcpy(static_cast<uint8_t *>(mBuffer->get()) + mOffset, data, size);
+}
+

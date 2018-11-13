@@ -15,6 +15,8 @@
 #include "CameraHandler.hpp"
 #include "V4L2ToXen.hpp"
 
+using namespace std::placeholders;
+
 CameraHandler::CameraHandler(std::string uniqueId) :
     mLog("CameraHandler")
 {
@@ -42,6 +44,7 @@ void CameraHandler::init(std::string uniqueId)
 
 void CameraHandler::release()
 {
+    mCamera->streamRelease();
 }
 
 void CameraHandler::configToXen(xencamera_config *cfg)
@@ -134,10 +137,18 @@ void CameraHandler::bufRequest(const xencamera_req& aReq,
     DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] domId " <<
         std::to_string(domId);
 
-    resp->num_bufs = mCamera->bufferRequest(req->num_bufs);
+    mCamera->streamRelease();
+    resp->num_bufs = mCamera->streamAlloc(req->num_bufs);
 
     DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] num_bufs " <<
         std::to_string(resp->num_bufs);
+}
+
+size_t CameraHandler::bufGetImageSize(domid_t domId)
+{
+    v4l2_format fmt = mCamera->formatGet();
+
+    return fmt.fmt.pix.sizeimage;
 }
 
 void CameraHandler::bufCreate(const xencamera_req& aReq,
@@ -146,9 +157,6 @@ void CameraHandler::bufCreate(const xencamera_req& aReq,
     DLOG(mLog, DEBUG) << "Handle command [BUF CREATE] domId " <<
         std::to_string(domId);
 
-    v4l2_format fmt = mCamera->formatGet();
-
-    mBuffers.emplace(domId, new FrontendBuffer(domId, fmt.fmt.pix.sizeimage, aReq));
 }
 
 void CameraHandler::bufDestroy(const xencamera_req& aReq,
@@ -158,16 +166,6 @@ void CameraHandler::bufDestroy(const xencamera_req& aReq,
 
     DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY] domId " <<
         std::to_string(domId) << " index " << std::to_string(req->index);
-
-    for (auto it = mBuffers.begin(); it != mBuffers.end(); ++it) {
-        if (it->first != domId)
-            continue;
-
-        if (it->second->getIndex() == req->index) {
-            mBuffers.erase(it);
-            break;
-        }
-    }
 }
 
 void CameraHandler::bufQueue(const xencamera_req& aReq,
@@ -220,11 +218,37 @@ void CameraHandler::streamStart(const xencamera_req& aReq,
                                 xencamera_resp& aResp)
 {
     DLOG(mLog, DEBUG) << "Handle command [STREAM START]";
+    mCamera->streamStart(bind(&CameraHandler::onFrameDoneCallback,
+                              this, _1, _2));
 }
 
 void CameraHandler::streamStop(const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP]";
+    mCamera->streamStop();
 }
 
+void CameraHandler::frameListenerSet(domid_t domId, FrameListener listener)
+{
+    /* TODO: lock */
+    mFrameListeners.emplace(domId, listener);
+}
+
+void CameraHandler::frameListenerReset(domid_t domId)
+{
+    /* TODO: Lock */
+    mFrameListeners.erase(domId);
+}
+
+int CameraHandler::onFrameDoneCallback(int index, int size)
+{
+    DLOG(mLog, DEBUG) << "Frame " << std::to_string(index);
+
+    auto data = mCamera->bufferGetData(index);
+
+    for (auto &listener : mFrameListeners)
+        listener.second(index, static_cast<uint8_t *>(data), size);
+
+    return index;
+}

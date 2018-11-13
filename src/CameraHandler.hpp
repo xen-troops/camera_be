@@ -8,6 +8,7 @@
 #ifndef SRC_CAMERAHANDLER_HPP_
 #define SRC_CAMERAHANDLER_HPP_
 
+#include <map>
 #include <unordered_map>
 
 #include <xen/be/Log.hpp>
@@ -31,6 +32,7 @@ public:
     void bufGetLayout(const xencamera_req& aReq, xencamera_resp& aResp);
     void bufRequest(const xencamera_req& aReq, xencamera_resp& aResp,
                     domid_t domId);
+    size_t bufGetImageSize(domid_t domId);
     void bufCreate(const xencamera_req& aReq, xencamera_resp& aResp,
                    domid_t domId);
     void bufDestroy(const xencamera_req& aReq, xencamera_resp& aResp,
@@ -50,15 +52,22 @@ public:
     void streamStart(const xencamera_req& aReq, xencamera_resp& aResp);
     void streamStop(const xencamera_req& aReq, xencamera_resp& aResp);
 
+    typedef std::function<void(int, uint8_t *, size_t)> FrameListener;
+
+    void frameListenerSet(domid_t domId, FrameListener listener);
+    void frameListenerReset(domid_t domId);
+
 private:
     XenBackend::Log mLog;
 
     CameraPtr mCamera;
 
-    std::unordered_map<int, FrontendBufferPtr> mBuffers;
+    std::unordered_map<domid_t, FrameListener> mFrameListeners;
 
     void init(std::string uniqueId);
     void release();
+
+    int onFrameDoneCallback(int index, int size);
 };
 
 typedef std::shared_ptr<CameraHandler> CameraHandlerPtr;
