@@ -202,10 +202,9 @@ void CommandHandler::bufCreate(const xencamera_req& req,
 
     size_t imageSize = mCameraHandler->bufGetImageSize(mDomId);
 
-    mBuffers.insert(mBuffers.begin() + create->index,
-                    FrontendBufferPtr(new FrontendBuffer(mDomId,
-                                                         imageSize,
-                                                         req)));
+    mBuffers[create->index] = FrontendBufferPtr(new FrontendBuffer(mDomId,
+                                                                   imageSize,
+                                                                   req));
 }
 
 void CommandHandler::bufDestroy(const xencamera_req& req,
@@ -218,7 +217,7 @@ void CommandHandler::bufDestroy(const xencamera_req& req,
 
     mCameraHandler->bufDestroy(req, resp, mDomId);
 
-    mBuffers.erase(mBuffers.begin() + index);
+    mBuffers.erase(index);
 }
 
 void CommandHandler::bufQueue(const xencamera_req& req,
