@@ -58,7 +58,7 @@ private:
     XenBackend::Log mLog;
 
     std::vector<std::string> mControls;
-    std::vector<FrontendBufferPtr> mBuffers;
+    std::unordered_map<int, FrontendBufferPtr> mBuffers;
 
     int mSequence;
 

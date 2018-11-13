@@ -52,6 +52,7 @@ void FrontendBuffer::init(const xencamera_req& req, size_t size)
 
 void FrontendBuffer::release()
 {
+    DLOG(mLog, DEBUG) << "Release buffer " << mIndex;
 }
 
 void FrontendBuffer::getBufferRefs(grant_ref_t startDirectory, uint32_t size,
