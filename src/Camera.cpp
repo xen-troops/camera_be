@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 
 #include "Camera.hpp"
@@ -264,7 +265,7 @@ int Camera::bufferExport(int index)
 
 void *Camera::bufferGetData(int index)
 {
-    return nullptr;
+    return mBuffers[index].data;
 }
 
 /*
@@ -316,13 +317,45 @@ void Camera::streamStop()
     LOG(mLog, DEBUG) << "Stopped streaming on device " << mDevPath;
 }
 
-void Camera::streamAlloc(int numBuffers, uint32_t width,
-                         uint32_t height, uint32_t pixelFormat)
+int Camera::streamAlloc(int numBuffers)
 {
+    int numAllocated = bufferRequest(numBuffers);
+
+    if (numAllocated != numBuffers)
+        LOG(mLog, WARNING) << "Allocated " << numAllocated <<
+            ", expected " << numBuffers;
+
+    for (int i = 0; i < numAllocated; i++) {
+        v4l2_buffer buf = bufferQuery(i);
+
+        void *start = mmap(nullptr, buf.length, PROT_READ | PROT_WRITE,
+                           MAP_SHARED, mFd, buf.m.offset);
+
+        if (start == MAP_FAILED)
+            throw Exception("Failed to mmap buffer for device " +
+                            mDevPath, errno);
+
+        bufferQueue(i);
+
+        mBuffers.push_back(
+            {
+                .size = static_cast<size_t>(buf.length),
+                .data = start
+            }
+        );
+    }
+
+    return numAllocated;
 }
 
 void Camera::streamRelease()
 {
+    streamStop();
+
+    for (auto const& buffer: mBuffers)
+        munmap(buffer.data, buffer.size);
+
+    mBuffers.clear();
 }
 
 void Camera::eventThread()

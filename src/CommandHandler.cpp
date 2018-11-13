@@ -15,6 +15,8 @@
 #include "CommandHandler.hpp"
 #include "V4L2ToXen.hpp"
 
+using namespace std::placeholders;
+
 std::unordered_map<int, CommandHandler::CommandFn> CommandHandler::sCmdTable =
 {
     { XENCAMERA_OP_CONFIG_SET,          &CommandHandler::configSet },
@@ -75,6 +77,7 @@ CommandHandler::CommandHandler(domid_t domId,
                                CameraHandlerPtr cameraHandler) :
     mDomId(domId),
     mEventBuffer(eventBuffer),
+	mEventId(0),
     mCameraHandler(cameraHandler),
     mLog("CommandHandler")
 {
@@ -102,10 +105,14 @@ void CommandHandler::init(std::string ctrls)
 
     while (std::getline(ss, item, XENCAMERA_LIST_SEPARATOR[0]))
         mControls.push_back(item);
+
+    mCameraHandler->frameListenerSet(mDomId,
+        bind(&CommandHandler::onFrameDoneCallback, this, _1, _2, _3));
 }
 
 void CommandHandler::release()
 {
+    mCameraHandler->frameListenerReset(mDomId);
 }
 
 int CommandHandler::processCommand(const xencamera_req& req,
@@ -192,6 +199,13 @@ void CommandHandler::bufCreate(const xencamera_req& req,
         std::to_string(create->plane_offset[0]);
 
     mCameraHandler->bufCreate(req, resp, mDomId);
+
+    size_t imageSize = mCameraHandler->bufGetImageSize(mDomId);
+
+    mBuffers.insert(mBuffers.begin() + create->index,
+                    FrontendBufferPtr(new FrontendBuffer(mDomId,
+                                                         imageSize,
+                                                         req)));
 }
 
 void CommandHandler::bufDestroy(const xencamera_req& req,
@@ -203,6 +217,8 @@ void CommandHandler::bufDestroy(const xencamera_req& req,
         std::to_string(index);
 
     mCameraHandler->bufDestroy(req, resp, mDomId);
+
+    mBuffers.erase(mBuffers.begin() + index);
 }
 
 void CommandHandler::bufQueue(const xencamera_req& req,
@@ -279,6 +295,7 @@ void CommandHandler::streamStart(const xencamera_req& req,
 {
     DLOG(mLog, DEBUG) << "Handle command [STREAM START]";
 
+    mSequence = 0;
     mCameraHandler->streamStart(req, resp);
 }
 
@@ -288,5 +305,25 @@ void CommandHandler::streamStop(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP]";
 
     mCameraHandler->streamStop(req, resp);
+}
+
+int CommandHandler::onFrameDoneCallback(int index, uint8_t *data, size_t size)
+{
+    DLOG(mLog, DEBUG) << "Send event [FRAME]";
+
+    xencamera_evt event {0};
+
+    event.type = XENCAMERA_EVT_FRAME_AVAIL;
+    event.evt.frame_avail.index = index;
+    event.evt.frame_avail.used_sz = size;
+    event.evt.frame_avail.seq_num = mSequence++;
+    event.id = mEventId++;
+
+    mBuffers[index]->copyBuffer(data, size);
+
+    mEventBuffer->sendEvent(event);
+
+    /* TODO: Return next available buffer. */
+    return index;
 }
 

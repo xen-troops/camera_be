@@ -34,22 +34,21 @@ public:
     }
 
     /* Buffer related functionlity. */
-    int bufferRequest(int numBuffers);
     v4l2_buffer bufferQuery(int index);
+    int bufferRequest(int numBuffers);
     void bufferQueue(int index);
     v4l2_buffer bufferDequeue();
     int bufferGetMin();
     int bufferExport(int index);
-    virtual void *bufferGetData(int index);
+    void *bufferGetData(int index);
 
     /* Stream related functionlity. */
     typedef std::function<int(int, int)> FrameDoneCallback;
 
-    virtual void streamAlloc(int numBuffers, uint32_t width,
-                             uint32_t height, uint32_t pixelFormat);
-    virtual void streamRelease();
-    virtual void streamStart(FrameDoneCallback clb);
-    virtual void streamStop();
+    int streamAlloc(int numBuffers);
+    void streamRelease();
+    void streamStart(FrameDoneCallback clb);
+    void streamStop();
 
     /* Format related functionality. */
     void formatSet(uint32_t width, uint32_t height, uint32_t pixelFormat);
@@ -94,6 +93,13 @@ protected:
     std::unique_ptr<XenBackend::PollFd> mPollFd;
 
     FrameDoneCallback mFrameDoneCallback;
+
+    struct Buffer {
+        size_t size;
+        void *data;
+    };
+
+    std::vector<Buffer> mBuffers;
 
     void init();
     void release();

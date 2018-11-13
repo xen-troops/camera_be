@@ -51,11 +51,16 @@ private:
 
     EventRingBufferPtr mEventBuffer;
 
+    int mEventId;
+
     CameraHandlerPtr mCameraHandler;
 
     XenBackend::Log mLog;
 
     std::vector<std::string> mControls;
+    std::vector<FrontendBufferPtr> mBuffers;
+
+    int mSequence;
 
     void init(std::string ctrls);
     void release();
@@ -76,6 +81,7 @@ private:
 
     void streamStart(const xencamera_req& aReq, xencamera_resp& aResp);
     void streamStop(const xencamera_req& aReq, xencamera_resp& aResp);
+    int onFrameDoneCallback(int index, uint8_t *data, size_t size);
 };
 
 /***************************************************************************//**

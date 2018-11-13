@@ -25,6 +25,8 @@ public:
         return mIndex;
     }
 
+    void copyBuffer(void *data, size_t size);
+
 private:
     XenBackend::Log mLog;
     std::mutex mLock;
@@ -42,6 +44,6 @@ private:
                        std::vector<grant_ref_t>& refs);
 };
 
-typedef std::shared_ptr<FrontendBuffer> FrontendBufferPtr;
+typedef std::unique_ptr<FrontendBuffer> FrontendBufferPtr;
 
 #endif /* SRC_FRONTENDBUFFER_HPP_ */
