@@ -483,7 +483,13 @@ v4l2_fract Camera::frameRateGet()
          throw Exception("Failed to call [VIDIOC_G_PARM] for device " +
                          mDevPath, errno);
 
-     return parm.parm.capture.timeperframe;
+     v4l2_fract frameRate;
+
+     /* Interval is inverse to frame rate. */
+     frameRate.numerator = parm.parm.capture.timeperframe.denominator;
+     frameRate.denominator = parm.parm.capture.timeperframe.numerator;
+
+     return frameRate;
 }
 
 void Camera::frameRateSet(int num, int denom)
@@ -491,12 +497,17 @@ void Camera::frameRateSet(int num, int denom)
     v4l2_streamparm parm {0};
 
     parm.type = cV4L2BufType;
-    parm.parm.capture.timeperframe.numerator = num;
-    parm.parm.capture.timeperframe.denominator = denom;
+    /* Interval is inverse to frame rate. */
+    parm.parm.capture.timeperframe.numerator = denom;
+    parm.parm.capture.timeperframe.denominator = num;
 
-     if (xioctl(VIDIOC_S_PARM, &parm) < 0)
-         throw Exception("Failed to call [VIDIOC_S_PARM] for device " +
-                         mDevPath, errno);
+    if (xioctl(VIDIOC_S_PARM, &parm) < 0)
+        throw Exception("Failed to call [VIDIOC_S_PARM] for device " +
+                        mDevPath, errno);
+
+    LOG(mLog, DEBUG) << "Set frame rate to " <<
+        parm.parm.capture.timeperframe.denominator << "/" <<
+        parm.parm.capture.timeperframe.numerator;
 }
 
 int Camera::frameSizeGet(int index, uint32_t pixelFormat,
