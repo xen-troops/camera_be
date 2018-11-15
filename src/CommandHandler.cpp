@@ -103,8 +103,10 @@ void CommandHandler::init(std::string ctrls)
     std::stringstream ss(ctrls);
     std::string item;
 
-    while (std::getline(ss, item, XENCAMERA_LIST_SEPARATOR[0]))
+    while (std::getline(ss, item, XENCAMERA_LIST_SEPARATOR[0])) {
+        LOG(mLog, DEBUG) << "Assigned control: " << item;
         mControls.push_back(item);
+    }
 
     mCameraHandler->frameListenerSet(mDomId,
         bind(&CommandHandler::onFrameDoneCallback, this, _1, _2, _3));
@@ -264,29 +266,35 @@ void CommandHandler::ctrlEnum(const xencamera_req& req,
 void CommandHandler::ctrlSet(const xencamera_req& req,
                              xencamera_resp& resp)
 {
-    size_t index = static_cast<size_t>(req.req.index.index);
+    int type = req.req.ctrl_value.type;
 
     DLOG(mLog, DEBUG) << "Handle command [SET CTRL]";
 
-    if (index >= mControls.size())
-        throw XenBackend::Exception("Wrong control index " +
-                                    std::to_string(index), EINVAL);
+    const char *ctrlName = V4L2ToXen::ctrlGetNameXen(type);
 
-    mCameraHandler->ctrlSet(req, resp, mControls[index]);
+    if (std::find(mControls.begin(), mControls.end(), ctrlName) ==
+        mControls.end())
+        throw XenBackend::Exception("Wrong control type " +
+                                    std::to_string(type), EINVAL);
+
+    mCameraHandler->ctrlSet(req, resp, ctrlName);
 }
 
 void CommandHandler::ctrlGet(const xencamera_req& req,
                              xencamera_resp& resp)
 {
-    size_t index = static_cast<size_t>(req.req.index.index);
+    int type = req.req.get_ctrl.type;
 
     DLOG(mLog, DEBUG) << "Handle command [GET CTRL]";
 
-    if (index >= mControls.size())
-        throw XenBackend::Exception("Wrong control index " +
-                                    std::to_string(index), EINVAL);
+    const char *ctrlName = V4L2ToXen::ctrlGetNameXen(type);
 
-    mCameraHandler->ctrlGet(req, resp, mControls[index]);
+    if (std::find(mControls.begin(), mControls.end(), ctrlName) ==
+        mControls.end())
+        throw XenBackend::Exception("Wrong control type " +
+                                    std::to_string(type), EINVAL);
+
+    mCameraHandler->ctrlGet(req, resp, ctrlName);
 }
 
 void CommandHandler::streamStart(const xencamera_req& req,

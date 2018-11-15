@@ -15,6 +15,8 @@ public:
     static int ctrlToXen(int v4l2);
     static int ctrlToV4L2(int xen);
 
+    static const char *ctrlGetNameXen(int xen);
+
     static int ctrlFlagsToXen(int v4l2);
     static int ctrlFlagsToV4L2(int xen);
 
@@ -41,6 +43,14 @@ private:
     static const xen_to_v4l2 XEN_XFER_FUNC_TO_V4L2[];
     static const xen_to_v4l2 XEN_YCBCR_ENC_TO_V4L2[];
     static const xen_to_v4l2 XEN_QUANTIZATION_TO_V4L2[];
+
+    struct xen_ctrl {
+        const char *name;
+        int xen;
+        int v4l2;
+    };
+
+    static const xen_ctrl XEN_CTRL[];
 
     static int toV4L2(int xen, const xen_to_v4l2 *table);
     static int toXen(int v4l2, const xen_to_v4l2 *table);
