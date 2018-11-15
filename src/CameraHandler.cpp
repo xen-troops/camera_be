@@ -229,16 +229,16 @@ void CameraHandler::streamStop(const xencamera_req& aReq,
     mCamera->streamStop();
 }
 
-void CameraHandler::frameListenerSet(domid_t domId, FrameListener listener)
+void CameraHandler::listenerSet(domid_t domId, Listeners listeners)
 {
     /* TODO: lock */
-    mFrameListeners.emplace(domId, listener);
+    mListeners.emplace(domId, listeners);
 }
 
-void CameraHandler::frameListenerReset(domid_t domId)
+void CameraHandler::listenerReset(domid_t domId)
 {
     /* TODO: Lock */
-    mFrameListeners.erase(domId);
+    mListeners.erase(domId);
 }
 
 int CameraHandler::onFrameDoneCallback(int index, int size)
@@ -247,8 +247,9 @@ int CameraHandler::onFrameDoneCallback(int index, int size)
 
     auto data = mCamera->bufferGetData(index);
 
-    for (auto &listener : mFrameListeners)
-        listener.second(index, static_cast<uint8_t *>(data), size);
+    for (auto &listener : mListeners)
+        listener.second.frame(index, static_cast<uint8_t *>(data), size);
 
     return index;
 }
+

@@ -52,17 +52,23 @@ public:
     void streamStart(const xencamera_req& aReq, xencamera_resp& aResp);
     void streamStop(const xencamera_req& aReq, xencamera_resp& aResp);
 
-    typedef std::function<void(int, uint8_t *, size_t)> FrameListener;
+    typedef std::function<int(int, uint8_t *, size_t)> FrameListener;
+    typedef std::function<void(int, int64_t)> ControlListener;
 
-    void frameListenerSet(domid_t domId, FrameListener listener);
-    void frameListenerReset(domid_t domId);
+    struct Listeners {
+        FrameListener frame;
+        ControlListener control;
+    };
+
+    void listenerSet(domid_t domId, Listeners listeners);
+    void listenerReset(domid_t domId);
 
 private:
     XenBackend::Log mLog;
 
     CameraPtr mCamera;
 
-    std::unordered_map<domid_t, FrameListener> mFrameListeners;
+    std::unordered_map<domid_t, Listeners> mListeners;
 
     void init(std::string uniqueId);
     void release();
