@@ -147,6 +147,35 @@ const V4L2ToXen::xen_to_v4l2 V4L2ToXen::XEN_QUANTIZATION_TO_V4L2[] = {
     }
 };
 
+const V4L2ToXen::xen_ctrl V4L2ToXen::XEN_CTRL[] = {
+    {
+        .name = XENCAMERA_CTRL_BRIGHTNESS_STR,
+        .xen = XENCAMERA_CTRL_BRIGHTNESS,
+        .v4l2 = V4L2_CID_BRIGHTNESS,
+    },
+    {
+        .name = XENCAMERA_CTRL_CONTRAST_STR,
+        .xen = XENCAMERA_CTRL_CONTRAST,
+        .v4l2 = V4L2_CID_CONTRAST,
+    },
+    {
+        .name = XENCAMERA_CTRL_SATURATION_STR,
+        .xen = XENCAMERA_CTRL_SATURATION,
+        .v4l2 = V4L2_CID_SATURATION,
+    },
+    {
+        .name = XENCAMERA_CTRL_HUE_STR,
+        .xen = XENCAMERA_CTRL_HUE,
+        .v4l2 = V4L2_CID_HUE
+    },
+    {
+        .name = nullptr,
+        .xen = -1,
+        .v4l2 = -1
+    }
+};
+
+
 int V4L2ToXen::toV4L2(int xen, const V4L2ToXen::xen_to_v4l2 *table)
 {
     int i;
@@ -291,5 +320,17 @@ int V4L2ToXen::ctrlFlagsToV4L2(int xen)
         flags |= V4L2_CTRL_FLAG_VOLATILE;
 
     return flags;
+}
+
+const char *V4L2ToXen::ctrlGetNameXen(int xen)
+{
+    int i;
+
+    for (i = 0; XEN_CTRL[i].xen != -1; i++)
+        if (XEN_CTRL[i].xen == xen)
+            return XEN_CTRL[i].name;
+
+    throw XenBackend::Exception("Unsupported Xen control type " +
+                                std::to_string(xen), EINVAL);
 }
 
