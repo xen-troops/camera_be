@@ -108,13 +108,18 @@ void CommandHandler::init(std::string ctrls)
         mControls.push_back(item);
     }
 
-    mCameraHandler->frameListenerSet(mDomId,
-        bind(&CommandHandler::onFrameDoneCallback, this, _1, _2, _3));
+    mCameraHandler->listenerSet(mDomId,
+        CameraHandler::Listeners {
+            .frame = bind(&CommandHandler::onFrameDoneCallback,
+                          this, _1, _2, _3),
+            .control = bind(&CommandHandler::onCtrlChangeCallback,
+                            this, _1, _2),
+        });
 }
 
 void CommandHandler::release()
 {
-    mCameraHandler->frameListenerReset(mDomId);
+    mCameraHandler->listenerReset(mDomId);
 }
 
 int CommandHandler::processCommand(const xencamera_req& req,
@@ -332,5 +337,19 @@ int CommandHandler::onFrameDoneCallback(int index, uint8_t *data, size_t size)
 
     /* TODO: Return next available buffer. */
     return index;
+}
+
+void CommandHandler::onCtrlChangeCallback(int xen_type, int64_t value)
+{
+    DLOG(mLog, DEBUG) << "Send event [CTRL]";
+
+    xencamera_evt event {0};
+
+    event.type = XENCAMERA_EVT_CTRL_CHANGE;
+    event.evt.ctrl_value.type = xen_type;
+    event.evt.ctrl_value.value = value;
+    event.id = mEventId++;
+
+    mEventBuffer->sendEvent(event);
 }
 
