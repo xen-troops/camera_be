@@ -25,9 +25,15 @@ public:
     CameraHandler(std::string uniqueId);
     ~CameraHandler();
 
-    void configToXen(xencamera_config *cfg);
+    void configToXen(xencamera_config_resp *cfg_resp);
+    void configSetTry(const xencamera_req& aReq, xencamera_resp& aResp,
+                      bool is_set);
+
     void configSet(const xencamera_req& aReq, xencamera_resp& aResp);
     void configGet(const xencamera_req& aReq, xencamera_resp& aResp);
+    void configValidate(const xencamera_req& aReq, xencamera_resp& aResp);
+
+    void frameRateSet(const xencamera_req& aReq, xencamera_resp& aResp);
 
     void bufGetLayout(const xencamera_req& aReq, xencamera_resp& aResp);
     void bufRequest(const xencamera_req& aReq, xencamera_resp& aResp,

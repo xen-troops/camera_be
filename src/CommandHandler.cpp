@@ -21,6 +21,8 @@ std::unordered_map<int, CommandHandler::CommandFn> CommandHandler::sCmdTable =
 {
     { XENCAMERA_OP_CONFIG_SET,          &CommandHandler::configSet },
     { XENCAMERA_OP_CONFIG_GET,          &CommandHandler::configGet },
+    { XENCAMERA_OP_CONFIG_VALIDATE,     &CommandHandler::configValidate },
+    { XENCAMERA_OP_FRAME_RATE_SET,      &CommandHandler::frameRateSet },
     { XENCAMERA_OP_BUF_GET_LAYOUT,      &CommandHandler::bufGetLayout },
     { XENCAMERA_OP_BUF_REQUEST,         &CommandHandler::bufRequest },
     { XENCAMERA_OP_BUF_CREATE,          &CommandHandler::bufCreate },
@@ -178,6 +180,22 @@ void CommandHandler::configGet(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [CONFIG GET]";
 
     mCameraHandler->configGet(req, resp);
+}
+
+void CommandHandler::configValidate(const xencamera_req& req,
+                                    xencamera_resp& resp)
+{
+    DLOG(mLog, DEBUG) << "Handle command [CONFIG VALIDATE]";
+
+    mCameraHandler->configValidate(req, resp);
+}
+
+void CommandHandler::frameRateSet(const xencamera_req& req,
+                                  xencamera_resp& resp)
+{
+    DLOG(mLog, DEBUG) << "Handle command [FRAME RATE SET]";
+
+    mCameraHandler->frameRateSet(req, resp);
 }
 
 void CommandHandler::bufGetLayout(const xencamera_req& req,

@@ -67,6 +67,9 @@ private:
 
     void configSet(const xencamera_req& aReq, xencamera_resp& aResp);
     void configGet(const xencamera_req& aReq, xencamera_resp& aResp);
+    void configValidate(const xencamera_req& aReq, xencamera_resp& aResp);
+
+    void frameRateSet(const xencamera_req& aReq, xencamera_resp& aResp);
 
     void bufGetLayout(const xencamera_req& aReq, xencamera_resp& aResp);
     void bufRequest(const xencamera_req& aReq, xencamera_resp& aResp);
