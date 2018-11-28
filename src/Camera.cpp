@@ -406,6 +406,18 @@ void Camera::formatSet(v4l2_format fmt)
                         mDevPath, errno);
 }
 
+void Camera::formatTry(v4l2_format fmt)
+{
+    LOG(mLog, DEBUG) << "Try format " << fmt.fmt.pix.width <<
+        "x" << fmt.fmt.pix.height;
+
+    fmt.type = cV4L2BufType;
+
+    if (xioctl(VIDIOC_TRY_FMT, &fmt) < 0)
+        throw Exception("Failed to call [VIDIOC_TRY_FMT] for device " +
+                        mDevPath, errno);
+}
+
 void Camera::formatSet(uint32_t width, uint32_t height, uint32_t pixelFormat)
 {
     v4l2_format fmt = formatGet();

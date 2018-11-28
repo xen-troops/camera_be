@@ -53,6 +53,7 @@ public:
     /* Format related functionality. */
     void formatSet(uint32_t width, uint32_t height, uint32_t pixelFormat);
     void formatSet(v4l2_format fmt);
+    void formatTry(v4l2_format fmt);
     v4l2_format formatGet();
 
     /* Frame rate related functionality. */
