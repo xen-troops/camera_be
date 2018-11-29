@@ -176,37 +176,6 @@ size_t CameraHandler::bufGetImageSize(domid_t domId)
     return fmt.fmt.pix.sizeimage;
 }
 
-void CameraHandler::bufCreate(const xencamera_req& aReq,
-                              xencamera_resp& aResp, domid_t domId)
-{
-    DLOG(mLog, DEBUG) << "Handle command [BUF CREATE] domId " <<
-        std::to_string(domId);
-
-}
-
-void CameraHandler::bufDestroy(const xencamera_req& aReq,
-                               xencamera_resp& aResp, domid_t domId)
-{
-    const xencamera_index *req = &aReq.req.index;
-
-    DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY] domId " <<
-        std::to_string(domId) << " index " << std::to_string(req->index);
-}
-
-void CameraHandler::bufQueue(const xencamera_req& aReq,
-                             xencamera_resp& aResp, domid_t domId)
-{
-    DLOG(mLog, DEBUG) << "Handle command [BUF QUEUE] domId " <<
-        std::to_string(domId);
-}
-
-void CameraHandler::bufDequeue(const xencamera_req& aReq,
-                               xencamera_resp& aResp, domid_t domId)
-{
-    DLOG(mLog, DEBUG) << "Handle command [BUF DEQUEUE] domId " <<
-        std::to_string(domId);
-}
-
 void CameraHandler::ctrlEnum(const xencamera_req& aReq,
                              xencamera_resp& aResp,
                              std::string name)
