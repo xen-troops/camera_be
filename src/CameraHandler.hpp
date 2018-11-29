@@ -39,14 +39,6 @@ public:
     void bufRequest(const xencamera_req& aReq, xencamera_resp& aResp,
                     domid_t domId);
     size_t bufGetImageSize(domid_t domId);
-    void bufCreate(const xencamera_req& aReq, xencamera_resp& aResp,
-                   domid_t domId);
-    void bufDestroy(const xencamera_req& aReq, xencamera_resp& aResp,
-                    domid_t domId);
-    void bufQueue(const xencamera_req& aReq, xencamera_resp& aResp,
-                  domid_t domId);
-    void bufDequeue(const xencamera_req& aReq, xencamera_resp& aResp,
-                    domid_t domId);
 
     void ctrlEnum(const xencamera_req& aReq, xencamera_resp& aResp,
                   std::string name);

@@ -56,9 +56,21 @@ private:
     CameraHandlerPtr mCameraHandler;
 
     XenBackend::Log mLog;
+    std::mutex mLock;
 
     std::vector<std::string> mControls;
     std::unordered_map<int, FrontendBufferPtr> mBuffers;
+
+    /*
+     * Buffer management
+     * 1. Frontend sends queue event: add the buffer to the queued list end
+     * 2. onFrame callback:
+     * 2.1. If there are buffers in the queued list then fill the first buffer
+     * from the queued list
+     * 2.2. If there are no buffers in the queued list, then do nothing
+     * 3. Frontend sends dequeue event: remove the buffer from the queued list
+     */
+    std::list<int> mQueuedBuffers;
 
     int mSequence;
 

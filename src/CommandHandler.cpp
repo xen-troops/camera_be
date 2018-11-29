@@ -223,8 +223,6 @@ void CommandHandler::bufCreate(const xencamera_req& req,
         std::to_string(create->index) << " offset " <<
         std::to_string(create->plane_offset[0]);
 
-    mCameraHandler->bufCreate(req, resp, mDomId);
-
     size_t imageSize = mCameraHandler->bufGetImageSize(mDomId);
 
     mBuffers[create->index] = FrontendBufferPtr(new FrontendBuffer(mDomId,
@@ -240,31 +238,60 @@ void CommandHandler::bufDestroy(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY] index " <<
         std::to_string(index);
 
-    mCameraHandler->bufDestroy(req, resp, mDomId);
-
     mBuffers.erase(index);
 }
 
 void CommandHandler::bufQueue(const xencamera_req& req,
                               xencamera_resp& resp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
     size_t index = static_cast<size_t>(req.req.index.index);
 
     DLOG(mLog, DEBUG) << "Handle command [BUF QUEUE] index " <<
         std::to_string(index);
 
-    mCameraHandler->bufQueue(req, resp, mDomId);
+    mQueuedBuffers.push_back(index);
 }
 
 void CommandHandler::bufDequeue(const xencamera_req& req,
                                 xencamera_resp& resp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
     size_t index = static_cast<size_t>(req.req.index.index);
 
     DLOG(mLog, DEBUG) << "Handle command [BUF DEQUEUE] index " <<
         std::to_string(index);
 
-    mCameraHandler->bufDequeue(req, resp, mDomId);
+    mQueuedBuffers.remove(index);
+}
+
+int CommandHandler::onFrameDoneCallback(int beIndex, uint8_t *data, size_t size)
+{
+    std::lock_guard<std::mutex> lock(mLock);
+    int feIndex;
+
+    if (mQueuedBuffers.empty())
+        return -1;
+
+    feIndex = mQueuedBuffers.front();
+
+    DLOG(mLog, DEBUG) << "Send event [FRAME] beIndex " <<
+        std::to_string(beIndex) << " feIndex " <<
+        std::to_string(feIndex);
+
+    xencamera_evt event {0};
+
+    event.type = XENCAMERA_EVT_FRAME_AVAIL;
+    event.evt.frame_avail.index = feIndex;
+    event.evt.frame_avail.used_sz = size;
+    event.evt.frame_avail.seq_num = mSequence++;
+    event.id = mEventId++;
+
+    mBuffers[feIndex]->copyBuffer(data, size);
+
+    mEventBuffer->sendEvent(event);
+
+    return beIndex;
 }
 
 void CommandHandler::ctrlEnum(const xencamera_req& req,
@@ -335,26 +362,6 @@ void CommandHandler::streamStop(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP]";
 
     mCameraHandler->streamStop(req, resp);
-}
-
-int CommandHandler::onFrameDoneCallback(int index, uint8_t *data, size_t size)
-{
-    DLOG(mLog, DEBUG) << "Send event [FRAME]";
-
-    xencamera_evt event {0};
-
-    event.type = XENCAMERA_EVT_FRAME_AVAIL;
-    event.evt.frame_avail.index = index;
-    event.evt.frame_avail.used_sz = size;
-    event.evt.frame_avail.seq_num = mSequence++;
-    event.id = mEventId++;
-
-    mBuffers[index]->copyBuffer(data, size);
-
-    mEventBuffer->sendEvent(event);
-
-    /* TODO: Return next available buffer. */
-    return index;
 }
 
 void CommandHandler::onCtrlChangeCallback(int xen_type, int64_t value)
