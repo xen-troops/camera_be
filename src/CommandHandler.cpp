@@ -353,7 +353,7 @@ void CommandHandler::streamStart(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [STREAM START]";
 
     mSequence = 0;
-    mCameraHandler->streamStart(req, resp);
+    mCameraHandler->streamStart(mDomId, req, resp);
 }
 
 void CommandHandler::streamStop(const xencamera_req& req,
@@ -361,7 +361,7 @@ void CommandHandler::streamStop(const xencamera_req& req,
 {
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP]";
 
-    mCameraHandler->streamStop(req, resp);
+    mCameraHandler->streamStop(mDomId, req, resp);
 }
 
 void CommandHandler::onCtrlChangeCallback(int xen_type, int64_t value)

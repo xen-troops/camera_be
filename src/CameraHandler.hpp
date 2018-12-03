@@ -47,8 +47,10 @@ public:
     void ctrlGet(const xencamera_req& aReq, xencamera_resp& aResp,
                  std::string name);
 
-    void streamStart(const xencamera_req& aReq, xencamera_resp& aResp);
-    void streamStop(const xencamera_req& aReq, xencamera_resp& aResp);
+    void streamStart(domid_t domId, const xencamera_req& aReq,
+                     xencamera_resp& aResp);
+    void streamStop(domid_t domId, const xencamera_req& aReq,
+                    xencamera_resp& aResp);
 
     typedef std::function<int(int, uint8_t *, size_t)> FrameListener;
     typedef std::function<void(int, int64_t)> ControlListener;
@@ -63,8 +65,38 @@ public:
 
 private:
     XenBackend::Log mLog;
+    std::mutex mLock;
 
     CameraPtr mCamera;
+
+    /*
+     * These help to make a decision if a requst from a frontend
+     * needs to directly go to HW camera device or needs to be emulated:
+     * for example, if one of the frontends has already set configuration
+     * what needs to be done if the other one wants to set some other
+     * diffferent configuration etc.
+     * FIXME: For now, for simplicity, we expect all the frontends to
+     * have the same configuration in order to avoid clashes.
+     * On the other hand, according to http://www.mail-archive.com/linux-media@vger.kernel.org/msg56550.html
+     * if frontend requests "wrong" configuration, e.g. different from what is
+     * already set, then it should be ok to return actual format, not the
+     * desired one.
+     * FIXME: the assumption above introduces a race condition between the
+     * frontends willing to set different configurations/formats.
+     * In order to avoid misbehaviour, e.g. when frontend-1 sets format first
+     * and then frontend-2 changes it to something different and there is
+     * no way to notify frontend-1 and its user-space of such a change, we
+     * only accept the very first set format and then emulate it to the rest.
+     */
+    bool mFormatSet;
+    bool mFramerateSet;
+    bool mBuffersAllocated;
+    int mNumBuffersAllocated;
+
+    std::unordered_map<domid_t, bool> mStreamingNow;
+
+    /* TODO: This needs to be a configuration option of the backend. */
+    static const int BE_CONFIG_NUM_BUFFERS = 4;
 
     std::unordered_map<domid_t, Listeners> mListeners;
 

@@ -39,6 +39,10 @@ CameraHandler::~CameraHandler()
 
 void CameraHandler::init(std::string uniqueId)
 {
+    mFormatSet = false;
+    mFramerateSet = false;
+    mBuffersAllocated = false;
+    mStreamingNow.clear();
     mCamera.reset(new Camera(uniqueId));
 }
 
@@ -103,22 +107,36 @@ void CameraHandler::configSetTry(const xencamera_req& aReq,
 void CameraHandler::configSet(const xencamera_req& aReq,
                               xencamera_resp& aResp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     DLOG(mLog, DEBUG) << "Handle command [CONFIG SET]";
 
-    configSetTry(aReq, aResp, true);
+    if (mFormatSet) {
+        configToXen(&aResp.resp.config);
+    } else {
+        configSetTry(aReq, aResp, true);
+        mFormatSet = true;
+    }
 }
 
 void CameraHandler::configValidate(const xencamera_req& aReq,
                                    xencamera_resp& aResp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     DLOG(mLog, DEBUG) << "Handle command [CONFIG VALIDATE]";
 
-    configSetTry(aReq, aResp, false);
+    if (mFormatSet)
+        configToXen(&aResp.resp.config);
+    else
+        configSetTry(aReq, aResp, false);
 }
 
 void CameraHandler::configGet(const xencamera_req& aReq,
                               xencamera_resp& aResp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     DLOG(mLog, DEBUG) << "Handle command [CONFIG GET]";
 
     configToXen(&aResp.resp.config);
@@ -127,16 +145,22 @@ void CameraHandler::configGet(const xencamera_req& aReq,
 void CameraHandler::frameRateSet(const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
     const xencamera_frame_rate_req *req = &aReq.req.frame_rate;
 
     DLOG(mLog, DEBUG) << "Handle command [FRAME RATE SET]";
 
-    mCamera->frameRateSet(req->frame_rate_numer, req->frame_rate_denom);
+    if (mFramerateSet) {
+    } else {
+        mCamera->frameRateSet(req->frame_rate_numer, req->frame_rate_denom);
+        mFramerateSet = true;
+    }
 }
 
 void CameraHandler::bufGetLayout(const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
     xencamera_buf_get_layout_resp *resp = &aResp.resp.buf_layout;
 
     DLOG(mLog, DEBUG) << "Handle command [BUF GET LAYOUT]";
@@ -156,14 +180,23 @@ void CameraHandler::bufGetLayout(const xencamera_req& aReq,
 void CameraHandler::bufRequest(const xencamera_req& aReq,
                                xencamera_resp& aResp, domid_t domId)
 {
+    std::lock_guard<std::mutex> lock(mLock);
     const xencamera_buf_request *req = &aReq.req.buf_request;
     xencamera_buf_request *resp = &aResp.resp.buf_request;
 
     DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] domId " <<
         std::to_string(domId);
 
-    mCamera->streamRelease();
-    resp->num_bufs = mCamera->streamAlloc(req->num_bufs);
+    if (!mBuffersAllocated) {
+        mCamera->streamRelease();
+        mNumBuffersAllocated = mCamera->streamAlloc(BE_CONFIG_NUM_BUFFERS);
+        mBuffersAllocated = true;
+    }
+
+    if (req->num_bufs > mNumBuffersAllocated)
+        resp->num_bufs = mNumBuffersAllocated;
+    else
+        resp->num_bufs = req->num_bufs;
 
     DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] num_bufs " <<
         std::to_string(resp->num_bufs);
@@ -171,6 +204,8 @@ void CameraHandler::bufRequest(const xencamera_req& aReq,
 
 size_t CameraHandler::bufGetImageSize(domid_t domId)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     v4l2_format fmt = mCamera->formatGet();
 
     return fmt.fmt.pix.sizeimage;
@@ -198,40 +233,58 @@ void CameraHandler::ctrlSet(const xencamera_req& aReq,
                             xencamera_resp& aResp,
                             std::string name)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     DLOG(mLog, DEBUG) << "Handle command [SET CTRL]";
+
+    /* TODO: send ctrl change event to the rest of frontends. */
 }
 
 void CameraHandler::ctrlGet(const xencamera_req& aReq,
                             xencamera_resp& aResp,
                             std::string name)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     DLOG(mLog, DEBUG) << "Handle command [GET CTRL]";
 }
 
-void CameraHandler::streamStart(const xencamera_req& aReq,
+void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
                                 xencamera_resp& aResp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     DLOG(mLog, DEBUG) << "Handle command [STREAM START]";
-    mCamera->streamStart(bind(&CameraHandler::onFrameDoneCallback,
-                              this, _1, _2));
+
+    if (!mStreamingNow.size())
+        mCamera->streamStart(bind(&CameraHandler::onFrameDoneCallback,
+                                  this, _1, _2));
+    mStreamingNow.emplace(domId, true);
 }
 
-void CameraHandler::streamStop(const xencamera_req& aReq,
+void CameraHandler::streamStop(domid_t domId, const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
+    std::lock_guard<std::mutex> lock(mLock);
+
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP]";
-    mCamera->streamStop();
+
+    mStreamingNow.erase(domId);
+    if (!mStreamingNow.size())
+        mCamera->streamStop();
 }
 
 void CameraHandler::listenerSet(domid_t domId, Listeners listeners)
 {
-    /* TODO: lock */
+    std::lock_guard<std::mutex> lock(mLock);
+
     mListeners.emplace(domId, listeners);
 }
 
 void CameraHandler::listenerReset(domid_t domId)
 {
-    /* TODO: Lock */
+    std::lock_guard<std::mutex> lock(mLock);
+
     mListeners.erase(domId);
 }
 
