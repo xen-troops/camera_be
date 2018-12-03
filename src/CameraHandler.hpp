@@ -29,23 +29,28 @@ public:
     void configSetTry(const xencamera_req& aReq, xencamera_resp& aResp,
                       bool is_set);
 
-    void configSet(const xencamera_req& aReq, xencamera_resp& aResp);
-    void configGet(const xencamera_req& aReq, xencamera_resp& aResp);
-    void configValidate(const xencamera_req& aReq, xencamera_resp& aResp);
+    void configSet(domid_t domId, const xencamera_req& aReq,
+                   xencamera_resp& aResp);
+    void configGet(domid_t domId, const xencamera_req& aReq,
+                   xencamera_resp& aResp);
+    void configValidate(domid_t domId, const xencamera_req& aReq,
+                        xencamera_resp& aResp);
 
-    void frameRateSet(const xencamera_req& aReq, xencamera_resp& aResp);
+    void frameRateSet(domid_t domId, const xencamera_req& aReq,
+                      xencamera_resp& aResp);
 
-    void bufGetLayout(const xencamera_req& aReq, xencamera_resp& aResp);
-    void bufRequest(const xencamera_req& aReq, xencamera_resp& aResp,
-                    domid_t domId);
+    void bufGetLayout(domid_t domId, const xencamera_req& aReq,
+                      xencamera_resp& aResp);
+    void bufRequest(domid_t domId, const xencamera_req& aReq,
+                    xencamera_resp& aResp);
     size_t bufGetImageSize(domid_t domId);
 
-    void ctrlEnum(const xencamera_req& aReq, xencamera_resp& aResp,
-                  std::string name);
-    void ctrlSet(const xencamera_req& aReq, xencamera_resp& aResp,
-                 std::string name);
-    void ctrlGet(const xencamera_req& aReq, xencamera_resp& aResp,
-                 std::string name);
+    void ctrlEnum(domid_t domId, const xencamera_req& aReq,
+                  xencamera_resp& aResp, std::string name);
+    void ctrlSet(domid_t domId, const xencamera_req& aReq,
+                 xencamera_resp& aResp,std::string name);
+    void ctrlGet(domid_t domId, const xencamera_req& aReq,
+                 xencamera_resp& aResp, std::string name);
 
     void streamStart(domid_t domId, const xencamera_req& aReq,
                      xencamera_resp& aResp);

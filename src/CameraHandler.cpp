@@ -104,12 +104,13 @@ void CameraHandler::configSetTry(const xencamera_req& aReq,
     configToXen(&aResp.resp.config);
 }
 
-void CameraHandler::configSet(const xencamera_req& aReq,
+void CameraHandler::configSet(domid_t domId, const xencamera_req& aReq,
                               xencamera_resp& aResp)
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    DLOG(mLog, DEBUG) << "Handle command [CONFIG SET]";
+    DLOG(mLog, DEBUG) << "Handle command [CONFIG SET] dom " <<
+        std::to_string(domId);
 
     if (mFormatSet) {
         configToXen(&aResp.resp.config);
@@ -119,12 +120,13 @@ void CameraHandler::configSet(const xencamera_req& aReq,
     }
 }
 
-void CameraHandler::configValidate(const xencamera_req& aReq,
+void CameraHandler::configValidate(domid_t domId, const xencamera_req& aReq,
                                    xencamera_resp& aResp)
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    DLOG(mLog, DEBUG) << "Handle command [CONFIG VALIDATE]";
+    DLOG(mLog, DEBUG) << "Handle command [CONFIG VALIDATE] dom " <<
+        std::to_string(domId);
 
     if (mFormatSet)
         configToXen(&aResp.resp.config);
@@ -132,23 +134,25 @@ void CameraHandler::configValidate(const xencamera_req& aReq,
         configSetTry(aReq, aResp, false);
 }
 
-void CameraHandler::configGet(const xencamera_req& aReq,
+void CameraHandler::configGet(domid_t domId, const xencamera_req& aReq,
                               xencamera_resp& aResp)
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    DLOG(mLog, DEBUG) << "Handle command [CONFIG GET]";
+    DLOG(mLog, DEBUG) << "Handle command [CONFIG GET] dom " <<
+        std::to_string(domId);
 
     configToXen(&aResp.resp.config);
 }
 
-void CameraHandler::frameRateSet(const xencamera_req& aReq,
+void CameraHandler::frameRateSet(domid_t domId, const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
     std::lock_guard<std::mutex> lock(mLock);
     const xencamera_frame_rate_req *req = &aReq.req.frame_rate;
 
-    DLOG(mLog, DEBUG) << "Handle command [FRAME RATE SET]";
+    DLOG(mLog, DEBUG) << "Handle command [FRAME RATE SET] dom " <<
+        std::to_string(domId);
 
     if (mFramerateSet) {
     } else {
@@ -157,13 +161,14 @@ void CameraHandler::frameRateSet(const xencamera_req& aReq,
     }
 }
 
-void CameraHandler::bufGetLayout(const xencamera_req& aReq,
+void CameraHandler::bufGetLayout(domid_t domId, const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
     std::lock_guard<std::mutex> lock(mLock);
     xencamera_buf_get_layout_resp *resp = &aResp.resp.buf_layout;
 
-    DLOG(mLog, DEBUG) << "Handle command [BUF GET LAYOUT]";
+    DLOG(mLog, DEBUG) << "Handle command [BUF GET LAYOUT] dom " <<
+        std::to_string(domId);
 
     v4l2_format fmt = mCamera->formatGet();
 
@@ -177,14 +182,14 @@ void CameraHandler::bufGetLayout(const xencamera_req& aReq,
     resp->plane_stride[0] = fmt.fmt.pix.bytesperline;
 }
 
-void CameraHandler::bufRequest(const xencamera_req& aReq,
-                               xencamera_resp& aResp, domid_t domId)
+void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
+                               xencamera_resp& aResp)
 {
     std::lock_guard<std::mutex> lock(mLock);
     const xencamera_buf_request *req = &aReq.req.buf_request;
     xencamera_buf_request *resp = &aResp.resp.buf_request;
 
-    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] domId " <<
+    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] dom " <<
         std::to_string(domId);
 
     if (!mBuffersAllocated) {
@@ -211,9 +216,8 @@ size_t CameraHandler::bufGetImageSize(domid_t domId)
     return fmt.fmt.pix.sizeimage;
 }
 
-void CameraHandler::ctrlEnum(const xencamera_req& aReq,
-                             xencamera_resp& aResp,
-                             std::string name)
+void CameraHandler::ctrlEnum(domid_t domId, const xencamera_req& aReq,
+                             xencamera_resp& aResp,std::string name)
 {
     const xencamera_index *req = &aReq.req.index;
     xencamera_ctrl_enum_resp *resp = &aResp.resp.ctrl_enum;
@@ -229,24 +233,15 @@ void CameraHandler::ctrlEnum(const xencamera_req& aReq,
     resp->def_val = info.default_value;
 }
 
-void CameraHandler::ctrlSet(const xencamera_req& aReq,
-                            xencamera_resp& aResp,
-                            std::string name)
+void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
+                            xencamera_resp& aResp, std::string name)
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    DLOG(mLog, DEBUG) << "Handle command [SET CTRL]";
+    DLOG(mLog, DEBUG) << "Handle command [SET CTRL] dom " <<
+        std::to_string(domId);
 
     /* TODO: send ctrl change event to the rest of frontends. */
-}
-
-void CameraHandler::ctrlGet(const xencamera_req& aReq,
-                            xencamera_resp& aResp,
-                            std::string name)
-{
-    std::lock_guard<std::mutex> lock(mLock);
-
-    DLOG(mLog, DEBUG) << "Handle command [GET CTRL]";
 }
 
 void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
@@ -254,7 +249,8 @@ void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    DLOG(mLog, DEBUG) << "Handle command [STREAM START]";
+    DLOG(mLog, DEBUG) << "Handle command [STREAM START] dom " <<
+        std::to_string(domId);
 
     if (!mStreamingNow.size())
         mCamera->streamStart(bind(&CameraHandler::onFrameDoneCallback,
@@ -267,7 +263,8 @@ void CameraHandler::streamStop(domid_t domId, const xencamera_req& aReq,
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    DLOG(mLog, DEBUG) << "Handle command [STREAM STOP]";
+    DLOG(mLog, DEBUG) << "Handle command [STREAM STOP] dom " <<
+        std::to_string(domId);
 
     mStreamingNow.erase(domId);
     if (!mStreamingNow.size())
@@ -290,12 +287,14 @@ void CameraHandler::listenerReset(domid_t domId)
 
 int CameraHandler::onFrameDoneCallback(int index, int size)
 {
-    DLOG(mLog, DEBUG) << "Frame " << std::to_string(index);
-
     auto data = mCamera->bufferGetData(index);
 
-    for (auto &listener : mListeners)
+    for (auto &listener : mListeners) {
+        DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) << " dom " <<
+            std::to_string(listener.first);
+
         listener.second.frame(index, static_cast<uint8_t *>(data), size);
+    }
 
     return index;
 }
