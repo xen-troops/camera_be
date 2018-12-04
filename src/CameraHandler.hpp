@@ -43,6 +43,7 @@ public:
                       xencamera_resp& aResp);
     void bufRequest(domid_t domId, const xencamera_req& aReq,
                     xencamera_resp& aResp);
+    void bufRelease(domid_t domId);
     size_t bufGetImageSize(domid_t domId);
 
     void ctrlEnum(domid_t domId, const xencamera_req& aReq,
@@ -95,9 +96,9 @@ private:
      */
     bool mFormatSet;
     bool mFramerateSet;
-    bool mBuffersAllocated;
     int mNumBuffersAllocated;
 
+    std::unordered_map<domid_t, int> mBuffersAllocated;
     std::unordered_map<domid_t, bool> mStreamingNow;
 
     /* TODO: This needs to be a configuration option of the backend. */

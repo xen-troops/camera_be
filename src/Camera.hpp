@@ -76,7 +76,6 @@ public:
 
 protected:
     XenBackend::Log mLog;
-    std::mutex mLock;
 
     const std::string mUniqueId;
     const std::string mDevPath;
@@ -84,8 +83,6 @@ protected:
 
     static const v4l2_buf_type cV4L2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     v4l2_memory cMemoryType = V4L2_MEMORY_MMAP;
-
-    bool mStreamStarted;
 
     std::vector<std::string> mVideoNodes;
 

@@ -41,14 +41,23 @@ void CameraHandler::init(std::string uniqueId)
 {
     mFormatSet = false;
     mFramerateSet = false;
-    mBuffersAllocated = false;
+    mBuffersAllocated.clear();
     mStreamingNow.clear();
     mCamera.reset(new Camera(uniqueId));
 }
 
-void CameraHandler::release()
+void CameraHandler::listenerSet(domid_t domId, Listeners listeners)
 {
-    mCamera->streamRelease();
+    std::lock_guard<std::mutex> lock(mLock);
+
+    mListeners.emplace(domId, listeners);
+}
+
+void CameraHandler::listenerReset(domid_t domId)
+{
+    std::lock_guard<std::mutex> lock(mLock);
+
+    mListeners.erase(domId);
 }
 
 void CameraHandler::configToXen(xencamera_config_resp *cfg_resp)
@@ -182,32 +191,6 @@ void CameraHandler::bufGetLayout(domid_t domId, const xencamera_req& aReq,
     resp->plane_stride[0] = fmt.fmt.pix.bytesperline;
 }
 
-void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
-                               xencamera_resp& aResp)
-{
-    std::lock_guard<std::mutex> lock(mLock);
-    const xencamera_buf_request *req = &aReq.req.buf_request;
-    xencamera_buf_request *resp = &aResp.resp.buf_request;
-
-    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] dom " <<
-        std::to_string(domId) << " requested num_bufs " <<
-        std::to_string(req->num_bufs);
-
-    if (!mBuffersAllocated) {
-        mCamera->streamRelease();
-        mNumBuffersAllocated = mCamera->streamAlloc(BE_CONFIG_NUM_BUFFERS);
-        mBuffersAllocated = true;
-    }
-
-    if (req->num_bufs > mNumBuffersAllocated)
-        resp->num_bufs = mNumBuffersAllocated;
-    else
-        resp->num_bufs = req->num_bufs;
-
-    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] allowed num_bufs " <<
-        std::to_string(resp->num_bufs);
-}
-
 size_t CameraHandler::bufGetImageSize(domid_t domId)
 {
     std::lock_guard<std::mutex> lock(mLock);
@@ -245,6 +228,60 @@ void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
     /* TODO: send ctrl change event to the rest of frontends. */
 }
 
+void CameraHandler::onFrameDoneCallback(int index, int size)
+{
+    auto data = mCamera->bufferGetData(index);
+
+    DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) <<
+        " backend index " << std::to_string(index);
+
+    for (auto &listener : mListeners)
+        listener.second.frame(static_cast<uint8_t *>(data), size);
+}
+
+void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
+                               xencamera_resp& aResp)
+{
+    std::lock_guard<std::mutex> lock(mLock);
+    const xencamera_buf_request *req = &aReq.req.buf_request;
+    xencamera_buf_request *resp = &aResp.resp.buf_request;
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] dom " <<
+        std::to_string(domId) << " requested num_bufs " <<
+        std::to_string(req->num_bufs);
+
+    /*
+     * If no buffers are allocated yet in the HW device (backend buffers)
+     * then request buffers now.
+     * This must not be less than max(frontend[i].max_buffers).
+     */
+    if (!mBuffersAllocated.size())
+        /* TODO: use config for BE_CONFIG_NUM_BUFFERS. */
+        mNumBuffersAllocated = mCamera->streamAlloc(BE_CONFIG_NUM_BUFFERS);
+
+    if (req->num_bufs > mNumBuffersAllocated)
+        resp->num_bufs = mNumBuffersAllocated;
+    else
+        resp->num_bufs = req->num_bufs;
+
+    mBuffersAllocated.emplace(domId, resp->num_bufs);
+
+    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] allowed num_bufs " <<
+        std::to_string(resp->num_bufs);
+}
+
+void CameraHandler::bufRelease(domid_t domId)
+{
+    std::lock_guard<std::mutex> lock(mLock);
+
+    DLOG(mLog, DEBUG) << "Frontend dom " << std::to_string(domId) <<
+        " has released all buffers";
+
+    mBuffersAllocated.erase(domId);
+    if (!mBuffersAllocated.size())
+        mCamera->streamRelease();
+}
+
 void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
                                 xencamera_resp& aResp)
 {
@@ -272,28 +309,9 @@ void CameraHandler::streamStop(domid_t domId, const xencamera_req& aReq,
         mCamera->streamStop();
 }
 
-void CameraHandler::listenerSet(domid_t domId, Listeners listeners)
+void CameraHandler::release()
 {
-    std::lock_guard<std::mutex> lock(mLock);
-
-    mListeners.emplace(domId, listeners);
-}
-
-void CameraHandler::listenerReset(domid_t domId)
-{
-    std::lock_guard<std::mutex> lock(mLock);
-
-    mListeners.erase(domId);
-}
-
-void CameraHandler::onFrameDoneCallback(int index, int size)
-{
-    auto data = mCamera->bufferGetData(index);
-
-    DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) <<
-        " backend index " << std::to_string(index);
-
-    for (auto &listener : mListeners)
-        listener.second.frame(static_cast<uint8_t *>(data), size);
+    mCamera->streamStop();
+    mCamera->streamRelease();
 }
 

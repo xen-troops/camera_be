@@ -31,7 +31,6 @@ Camera::Camera(const std::string devName):
     mUniqueId(devName),
     mDevPath("/dev/" + devName),
     mFd(-1),
-    mStreamStarted(false),
     mFrameDoneCallback(nullptr)
 {
     try {
@@ -276,13 +275,26 @@ void *Camera::bufferGetData(int index)
  * Stream related functionality.
  ********************************************************************
  */
+
+void Camera::eventThread()
+{
+    try {
+        while (mPollFd->poll()) {
+            v4l2_buffer buf = bufferDequeue();
+
+            if (mFrameDoneCallback)
+                mFrameDoneCallback(buf.index, buf.bytesused);
+            bufferQueue(buf.index);
+        }
+    } catch(const std::exception& e) {
+        LOG(mLog, ERROR) << e.what();
+
+        kill(getpid(), SIGTERM);
+    }
+}
+
 void Camera::streamStart(FrameDoneCallback clb)
 {
-    std::lock_guard<std::mutex> lock(mLock);
-
-    if (mStreamStarted)
-        return;
-
     mFrameDoneCallback = clb;
 
     mThread = std::thread(&Camera::eventThread, this);
@@ -292,18 +304,11 @@ void Camera::streamStart(FrameDoneCallback clb)
     if (xioctl(VIDIOC_STREAMON, &type) < 0)
         LOG(mLog, ERROR) << "Failed to start streaming on device " << mDevPath;
 
-    mStreamStarted = true;
-
     LOG(mLog, DEBUG) << "Started streaming on device " << mDevPath;
 }
 
 void Camera::streamStop()
 {
-    std::lock_guard<std::mutex> lock(mLock);
-
-    if (!mStreamStarted)
-        return;
-
     if (mPollFd)
         mPollFd->stop();
 
@@ -314,8 +319,6 @@ void Camera::streamStop()
 
     if (xioctl(VIDIOC_STREAMOFF, &type) < 0)
         LOG(mLog, ERROR) << "Failed to stop streaming for " << mDevPath;
-
-    mStreamStarted = false;
 
     LOG(mLog, DEBUG) << "Stopped streaming on device " << mDevPath;
 }
@@ -353,29 +356,11 @@ int Camera::streamAlloc(int numBuffers)
 
 void Camera::streamRelease()
 {
-    streamStop();
-
+    DLOG(mLog, DEBUG) << "Release all buffers";
     for (auto const& buffer: mBuffers)
         munmap(buffer.data, buffer.size);
 
     mBuffers.clear();
-}
-
-void Camera::eventThread()
-{
-    try {
-        while (mPollFd->poll()) {
-            v4l2_buffer buf = bufferDequeue();
-
-            if (mFrameDoneCallback)
-                mFrameDoneCallback(buf.index, buf.bytesused);
-            bufferQueue(buf.index);
-        }
-    } catch(const std::exception& e) {
-        LOG(mLog, ERROR) << e.what();
-
-        kill(getpid(), SIGTERM);
-    }
 }
 
 /*

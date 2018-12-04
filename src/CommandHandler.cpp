@@ -228,6 +228,12 @@ void CommandHandler::bufDestroy(const xencamera_req& req,
         std::to_string(mDomId) << " index " << std::to_string(index);
 
     mBuffers.erase(index);
+    /*
+     * If this was the last buffer then tell the CameraHandler it might
+     * release the buffers.
+     */
+    if (!mBuffers.size())
+            mCameraHandler->bufRelease(mDomId);
 }
 
 void CommandHandler::bufQueue(const xencamera_req& req,
