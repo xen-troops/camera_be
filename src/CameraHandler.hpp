@@ -58,7 +58,7 @@ public:
     void streamStop(domid_t domId, const xencamera_req& aReq,
                     xencamera_resp& aResp);
 
-    typedef std::function<void(uint8_t *, size_t)> FrameListener;
+    typedef std::function<void(uint32_t, uint8_t *, size_t)> FrameListener;
     typedef std::function<void(int, int64_t)> ControlListener;
 
     struct Listeners {
@@ -109,7 +109,7 @@ private:
     void init(std::string uniqueId);
     void release();
 
-    void onFrameDoneCallback(int index, int size);
+    void onFrameDoneCallback(uint32_t sequence, int index, int size);
 };
 
 typedef std::shared_ptr<CameraHandler> CameraHandlerPtr;

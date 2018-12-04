@@ -72,7 +72,8 @@ private:
      */
     std::list<int> mQueuedBuffers;
 
-    int mSequence;
+    uint64_t mSequence;
+    uint32_t mV4L2Sequence;
 
     void init(std::string ctrls);
     void release();
@@ -97,7 +98,7 @@ private:
     void streamStart(const xencamera_req& aReq, xencamera_resp& aResp);
     void streamStop(const xencamera_req& aReq, xencamera_resp& aResp);
 
-    void onFrameDoneCallback(uint8_t *data, size_t size);
+    void onFrameDoneCallback(uint32_t sequence, uint8_t *data, size_t size);
     void onCtrlChangeCallback(int xen_type, int64_t value);
 };
 
