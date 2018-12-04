@@ -190,7 +190,8 @@ void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
     xencamera_buf_request *resp = &aResp.resp.buf_request;
 
     DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] dom " <<
-        std::to_string(domId);
+        std::to_string(domId) << " requested num_bufs " <<
+        std::to_string(req->num_bufs);
 
     if (!mBuffersAllocated) {
         mCamera->streamRelease();
@@ -203,7 +204,7 @@ void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
     else
         resp->num_bufs = req->num_bufs;
 
-    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] num_bufs " <<
+    DLOG(mLog, DEBUG) << "Handle command [BUF REQUEST] allowed num_bufs " <<
         std::to_string(resp->num_bufs);
 }
 
@@ -285,17 +286,14 @@ void CameraHandler::listenerReset(domid_t domId)
     mListeners.erase(domId);
 }
 
-int CameraHandler::onFrameDoneCallback(int index, int size)
+void CameraHandler::onFrameDoneCallback(int index, int size)
 {
     auto data = mCamera->bufferGetData(index);
 
-    for (auto &listener : mListeners) {
-        DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) << " dom " <<
-            std::to_string(listener.first);
+    DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) <<
+        " backend index " << std::to_string(index);
 
-        listener.second.frame(index, static_cast<uint8_t *>(data), size);
-    }
-
-    return index;
+    for (auto &listener : mListeners)
+        listener.second.frame(static_cast<uint8_t *>(data), size);
 }
 

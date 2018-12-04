@@ -113,7 +113,7 @@ void CommandHandler::init(std::string ctrls)
     mCameraHandler->listenerSet(mDomId,
         CameraHandler::Listeners {
             .frame = bind(&CommandHandler::onFrameDoneCallback,
-                          this, _1, _2, _3),
+                          this, _1, _2),
             .control = bind(&CommandHandler::onCtrlChangeCallback,
                             this, _1, _2),
         });
@@ -254,34 +254,30 @@ void CommandHandler::bufDequeue(const xencamera_req& req,
     mQueuedBuffers.remove(index);
 }
 
-int CommandHandler::onFrameDoneCallback(int beIndex, uint8_t *data, size_t size)
+void CommandHandler::onFrameDoneCallback(uint8_t *data, size_t size)
 {
     std::lock_guard<std::mutex> lock(mLock);
-    int feIndex;
+    int index;
 
     if (mQueuedBuffers.empty())
-        return -1;
+        return;
 
-    feIndex = mQueuedBuffers.front();
+    index = mQueuedBuffers.front();
 
     DLOG(mLog, DEBUG) << "Send event [FRAME] dom " <<
-        std::to_string(mDomId) << " beIndex " <<
-        std::to_string(beIndex) << " feIndex " <<
-        std::to_string(feIndex);
+        std::to_string(mDomId) << " index " << std::to_string(index);
 
     xencamera_evt event {0};
 
     event.type = XENCAMERA_EVT_FRAME_AVAIL;
-    event.evt.frame_avail.index = feIndex;
+    event.evt.frame_avail.index = index;
     event.evt.frame_avail.used_sz = size;
     event.evt.frame_avail.seq_num = mSequence++;
     event.id = mEventId++;
 
-    mBuffers[feIndex]->copyBuffer(data, size);
+    mBuffers[index]->copyBuffer(data, size);
 
     mEventBuffer->sendEvent(event);
-
-    return beIndex;
 }
 
 void CommandHandler::ctrlEnum(const xencamera_req& req,
