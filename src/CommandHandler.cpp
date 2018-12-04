@@ -113,7 +113,7 @@ void CommandHandler::init(std::string ctrls)
     mCameraHandler->listenerSet(mDomId,
         CameraHandler::Listeners {
             .frame = bind(&CommandHandler::onFrameDoneCallback,
-                          this, _1, _2),
+                          this, _1, _2, _3),
             .control = bind(&CommandHandler::onCtrlChangeCallback,
                             this, _1, _2),
         });
@@ -260,18 +260,24 @@ void CommandHandler::bufDequeue(const xencamera_req& req,
     mQueuedBuffers.remove(index);
 }
 
-void CommandHandler::onFrameDoneCallback(uint8_t *data, size_t size)
+void CommandHandler::onFrameDoneCallback(uint32_t sequence,
+                                         uint8_t *data, size_t size)
 {
     std::lock_guard<std::mutex> lock(mLock);
-    int index;
 
     if (mQueuedBuffers.empty())
         return;
 
-    index = mQueuedBuffers.front();
+    int index = mQueuedBuffers.front();
+
+    uint32_t distance = (sequence - mV4L2Sequence) % UINT32_MAX;
+    mSequence += distance;
+    mV4L2Sequence = sequence;
 
     DLOG(mLog, DEBUG) << "Send event [FRAME] dom " <<
-        std::to_string(mDomId) << " index " << std::to_string(index);
+        std::to_string(mDomId) << " index " << std::to_string(index) <<
+        " sequence V4L2 " <<std::to_string(sequence) <<
+        " protocol " << std::to_string(mSequence);
 
     xencamera_evt event {0};
 
@@ -344,6 +350,7 @@ void CommandHandler::streamStart(const xencamera_req& req,
                                  xencamera_resp& resp)
 {
     mSequence = 0;
+    mV4L2Sequence = 0;
     mCameraHandler->streamStart(mDomId, req, resp);
 }
 
