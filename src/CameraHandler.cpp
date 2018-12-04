@@ -228,7 +228,7 @@ void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
     /* TODO: send ctrl change event to the rest of frontends. */
 }
 
-void CameraHandler::onFrameDoneCallback(uint32_t sequence, int index, int size)
+void CameraHandler::onFrameDoneCallback(int index, int size)
 {
     auto data = mCamera->bufferGetData(index);
 
@@ -236,7 +236,7 @@ void CameraHandler::onFrameDoneCallback(uint32_t sequence, int index, int size)
         " backend index " << std::to_string(index);
 
     for (auto &listener : mListeners)
-        listener.second.frame(sequence, static_cast<uint8_t *>(data), size);
+        listener.second.frame(static_cast<uint8_t *>(data), size);
 }
 
 void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
@@ -292,7 +292,7 @@ void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
 
     if (!mStreamingNow.size())
         mCamera->streamStart(bind(&CameraHandler::onFrameDoneCallback,
-                                  this, _1, _2, _3));
+                                  this, _1, _2));
     mStreamingNow.emplace(domId, true);
 }
 

@@ -283,7 +283,7 @@ void Camera::eventThread()
             v4l2_buffer buf = bufferDequeue();
 
             if (mFrameDoneCallback)
-                mFrameDoneCallback(buf.sequence, buf.index, buf.bytesused);
+                mFrameDoneCallback(buf.index, buf.bytesused);
             bufferQueue(buf.index);
         }
     } catch(const std::exception& e) {
