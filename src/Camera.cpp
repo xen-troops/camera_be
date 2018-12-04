@@ -226,6 +226,8 @@ void Camera::bufferQueue(int index)
 {
     v4l2_buffer buf {0};
 
+    DLOG(mLog, DEBUG) << "[VIDIOC_QBUF] index " << std::to_string(index) <<
+        " for device " << mDevPath;
     buf.type = cV4L2BufType;
     buf.memory = cMemoryType;
     buf.index = index;
@@ -239,6 +241,7 @@ v4l2_buffer Camera::bufferDequeue()
 {
     v4l2_buffer buf {0};
 
+    DLOG(mLog, DEBUG) << "[VIDIOC_DQBUF] for device " << mDevPath;
     buf.type = cV4L2BufType;
     buf.memory = cMemoryType;
 
@@ -364,11 +367,9 @@ void Camera::eventThread()
         while (mPollFd->poll()) {
             v4l2_buffer buf = bufferDequeue();
 
-            int next = buf.index;
-
             if (mFrameDoneCallback)
-                next = mFrameDoneCallback(buf.index, buf.bytesused);
-            bufferQueue(next);
+                mFrameDoneCallback(buf.index, buf.bytesused);
+            bufferQueue(buf.index);
         }
     } catch(const std::exception& e) {
         LOG(mLog, ERROR) << e.what();

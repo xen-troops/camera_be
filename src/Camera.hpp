@@ -43,7 +43,7 @@ public:
     void *bufferGetData(int index);
 
     /* Stream related functionlity. */
-    typedef std::function<int(int, int)> FrameDoneCallback;
+    typedef std::function<void(int, int)> FrameDoneCallback;
 
     int streamAlloc(int numBuffers);
     void streamRelease();
