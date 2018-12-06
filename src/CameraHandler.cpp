@@ -222,10 +222,40 @@ void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
 {
     std::lock_guard<std::mutex> lock(mLock);
 
-    DLOG(mLog, DEBUG) << "Handle command [SET CTRL] dom " <<
-        std::to_string(domId);
+    /*
+     * FIXME: for V4L2 frontends there could be a circular depependecy
+     * here: when a frontend recievs "control changed" event it will
+     * inject it into the V4L2 framework with v4l2_ctrl_s_ctrl,
+     * which internally calls driver's s_ctrl callback. This callback
+     * is implemented in a way that it sends "set control" request to
+     * the backend, which is expected to send events to the rest
+     * of the frontends.
+     * Work this around by checking if this "set control" request
+     * has control's value different from the current and only send
+     * events if so.
+     */
+    auto curVal = mCamera->controlGetValue(name);
 
-    /* TODO: send ctrl change event to the rest of frontends. */
+    DLOG(mLog, DEBUG) << "Handle command [SET CTRL] dom " <<
+        std::to_string(domId) << " control " << name << " current: " <<
+        std::to_string(curVal) << " requested: " <<
+        std::to_string(aReq.req.ctrl_value.value);
+
+    if (curVal == aReq.req.ctrl_value.value) {
+        DLOG(mLog, DEBUG) << "Skip command [SET CTRL] dom " <<
+            std::to_string(domId) << " control " << name << " current: " <<
+            std::to_string(curVal) << " requested: " <<
+            std::to_string(aReq.req.ctrl_value.value);
+        return;
+    }
+
+    mCamera->controlSetValue(name, aReq.req.ctrl_value.value);
+
+    /* Send ctrl change event to the rest of frontends, but current. */
+    for (auto &listener : mListeners) {
+        if (listener.first != domId)
+            listener.second.control(name, aReq.req.ctrl_value.value);
+    }
 }
 
 void CameraHandler::onFrameDoneCallback(int index, int size)

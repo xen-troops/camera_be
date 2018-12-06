@@ -8,6 +8,8 @@
 #ifndef SRC_V4L2TOXEN_HPP_
 #define SRC_V4L2TOXEN_HPP_
 
+#include <string>
+
 class V4L2ToXen
 {
 public:
@@ -15,7 +17,8 @@ public:
     static int ctrlToXen(int v4l2);
     static int ctrlToV4L2(int xen);
 
-    static const char *ctrlGetNameXen(int xen);
+    static const std::string ctrlGetNameXen(int xen);
+    static int ctrlGetTypeXen(const std::string& name);
 
     static int ctrlFlagsToXen(int v4l2);
     static int ctrlFlagsToV4L2(int xen);

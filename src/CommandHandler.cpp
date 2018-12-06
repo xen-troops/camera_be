@@ -314,7 +314,7 @@ void CommandHandler::ctrlSet(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [SET CTRL] dom " <<
         std::to_string(mDomId);
 
-    const char *ctrlName = V4L2ToXen::ctrlGetNameXen(type);
+    auto ctrlName = V4L2ToXen::ctrlGetNameXen(type);
 
     if (std::find(mControls.begin(), mControls.end(), ctrlName) ==
         mControls.end())
@@ -332,7 +332,7 @@ void CommandHandler::ctrlGet(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [GET CTRL] dom " <<
         std::to_string(mDomId);
 
-    const char *ctrlName = V4L2ToXen::ctrlGetNameXen(type);
+    auto ctrlName = V4L2ToXen::ctrlGetNameXen(type);
 
     if (std::find(mControls.begin(), mControls.end(), ctrlName) ==
         mControls.end())
@@ -353,15 +353,22 @@ void CommandHandler::streamStop(const xencamera_req& req,
     mCameraHandler->streamStop(mDomId, req, resp);
 }
 
-void CommandHandler::onCtrlChangeCallback(int xen_type, int64_t value)
+void CommandHandler::onCtrlChangeCallback(const std::string name, int64_t value)
 {
-    DLOG(mLog, DEBUG) << "Send event [CTRL]  dom " <<
+    auto ctrl = std::find(mControls.begin(), mControls.end(), name);
+
+    if (ctrl == mControls.end()) {
+        DLOG(mLog, DEBUG) << "Not supported control for change event, skipping";
+        return;
+    }
+
+    DLOG(mLog, DEBUG) << "Send event [CTRL] dom " <<
         std::to_string(mDomId);
 
     xencamera_evt event {0};
 
     event.type = XENCAMERA_EVT_CTRL_CHANGE;
-    event.evt.ctrl_value.type = xen_type;
+    event.evt.ctrl_value.type = V4L2ToXen::ctrlGetTypeXen(name);
     event.evt.ctrl_value.value = value;
     event.id = mEventId++;
 

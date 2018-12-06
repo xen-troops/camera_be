@@ -72,7 +72,7 @@ public:
 
     ControlInfo controlEnum(std::string name);
     void controlSetValue(std::string name, signed int value);
-    void controlGetValue(std::string name, signed int *value);
+    signed int controlGetValue(std::string name);
 
 protected:
     XenBackend::Log mLog;
@@ -142,7 +142,7 @@ protected:
     std::vector<ControlInfo> mControls;
 
     void controlEnumerate();
-    void controlGetValue(int v4l2_cid, signed int *value);
+    signed int controlGetValue(int v4l2_cid);
 
     void eventThread();
 };
