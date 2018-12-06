@@ -182,10 +182,7 @@ void Camera::close()
  */
 int Camera::bufferGetMin()
 {
-    signed int min;
-
-    controlGetValue(V4L2_CID_MIN_BUFFERS_FOR_CAPTURE, &min);
-    return min;
+    return static_cast<int>(controlGetValue(V4L2_CID_MIN_BUFFERS_FOR_CAPTURE));
 }
 
 int Camera::bufferRequest(int numBuffers)
@@ -612,7 +609,7 @@ void Camera::controlSetValue(std::string name, signed int value)
                         mDevPath, errno);
 }
 
-void Camera::controlGetValue(int v4l2_cid, signed int *value)
+signed int Camera::controlGetValue(int v4l2_cid)
 {
     v4l2_control control {0};
 
@@ -621,13 +618,13 @@ void Camera::controlGetValue(int v4l2_cid, signed int *value)
     if (xioctl(VIDIOC_G_CTRL, &control) < 0)
         throw Exception("Failed to call [VIDIOC_G_CTRL] for device " +
                         mDevPath, errno);
-    *value = control.value;
+    return control.value;
 }
 
-void Camera::controlGetValue(std::string name, signed int *value)
+signed int Camera::controlGetValue(std::string name)
 {
     auto ctrl = controlEnum(name);
 
-    controlGetValue(ctrl.v4l2_cid, value);
+    return controlGetValue(ctrl.v4l2_cid);
 }
 

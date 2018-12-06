@@ -322,7 +322,7 @@ int V4L2ToXen::ctrlFlagsToV4L2(int xen)
     return flags;
 }
 
-const char *V4L2ToXen::ctrlGetNameXen(int xen)
+const std::string V4L2ToXen::ctrlGetNameXen(int xen)
 {
     int i;
 
@@ -332,5 +332,16 @@ const char *V4L2ToXen::ctrlGetNameXen(int xen)
 
     throw XenBackend::Exception("Unsupported Xen control type " +
                                 std::to_string(xen), EINVAL);
+}
+
+int V4L2ToXen::ctrlGetTypeXen(const std::string& name)
+{
+    int i;
+
+    for (i = 0; XEN_CTRL[i].xen != -1; i++)
+        if (XEN_CTRL[i].name == name)
+            return XEN_CTRL[i].xen;
+
+    throw XenBackend::Exception("Unsupported Xen control name " + name, EINVAL);
 }
 

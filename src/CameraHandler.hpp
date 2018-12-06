@@ -58,8 +58,10 @@ public:
     void streamStop(domid_t domId, const xencamera_req& aReq,
                     xencamera_resp& aResp);
 
+    /* data, size */
     typedef std::function<void(uint8_t *, size_t)> FrameListener;
-    typedef std::function<void(int, int64_t)> ControlListener;
+    /* name, value */
+    typedef std::function<void(const std::string, int64_t)> ControlListener;
 
     struct Listeners {
         FrameListener frame;

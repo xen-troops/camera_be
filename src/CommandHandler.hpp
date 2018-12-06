@@ -98,7 +98,7 @@ private:
     void streamStop(const xencamera_req& aReq, xencamera_resp& aResp);
 
     void onFrameDoneCallback(uint8_t *data, size_t size);
-    void onCtrlChangeCallback(int xen_type, int64_t value);
+    void onCtrlChangeCallback(const std::string name, int64_t value);
 };
 
 /***************************************************************************//**
