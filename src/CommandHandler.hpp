@@ -72,7 +72,7 @@ private:
      */
     std::list<int> mQueuedBuffers;
 
-    int mSequence;
+    uint32_t mSequence;
 
     void init(std::string ctrls);
     void release();

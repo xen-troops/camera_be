@@ -97,14 +97,6 @@ void CameraHandler::configSetTry(const xencamera_req& aReq,
     fmt.fmt.pix.width = cfg_req->width;
     fmt.fmt.pix.height = cfg_req->height;
 
-    fmt.fmt.pix.colorspace = V4L2ToXen::colorspaceToV4L2(cfg_req->colorspace);
-
-    fmt.fmt.pix.xfer_func = V4L2ToXen::xferToV4L2(cfg_req->xfer_func);
-
-    fmt.fmt.pix.ycbcr_enc = V4L2ToXen::ycbcrToV4L2(cfg_req->ycbcr_enc);
-
-    fmt.fmt.pix.quantization = V4L2ToXen::quantizationToV4L2(cfg_req->quantization);
-
     if (is_set)
         mCamera->formatSet(fmt);
     else
