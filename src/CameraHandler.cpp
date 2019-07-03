@@ -333,7 +333,9 @@ void CameraHandler::streamStop(domid_t domId, const xencamera_req& aReq,
 
 void CameraHandler::release()
 {
-    mCamera->streamStop();
-    mCamera->streamRelease();
+    if (mCamera) {
+        mCamera->streamStop();
+        mCamera->streamRelease();
+    }
 }
 
