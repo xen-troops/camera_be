@@ -4,7 +4,7 @@
 /*
  * Xen para-virtualized camera backend
  *
- * Copyright (C) 2018 EPAM Systems Inc.
+ * Copyright (C) 2018-2019 EPAM Systems Inc.
  */
 
 #include <algorithm>
