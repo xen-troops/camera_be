@@ -25,8 +25,15 @@ CameraHandler::CameraHandler(std::string uniqueId) :
     try {
         init(uniqueId);
     } catch (...) {
-        release();
-        throw;
+        /*
+          If initialization failed, we assume that camera HW does not work properly
+          or is not connected.
+          In such case we will:
+          - not create instance of Camera class
+          - handle all requests but instead of interaction with HW will return 'empty' responses
+        */
+        LOG(mLog, ERROR) << "Camera initialization failed, so we will run without hardware.";
+        mCamera.reset();
     }
 }
 
@@ -62,6 +69,11 @@ void CameraHandler::listenerReset(domid_t domId)
 
 void CameraHandler::configToXen(xencamera_config_resp *cfg_resp)
 {
+    if (!mCamera) {
+        memset(cfg_resp, 0, sizeof(xencamera_config_resp));
+        return;
+    }
+
     v4l2_format fmt = mCamera->formatGet();
 
     cfg_resp->pixel_format = fmt.fmt.pix.pixelformat;
@@ -89,6 +101,11 @@ void CameraHandler::configToXen(xencamera_config_resp *cfg_resp)
 void CameraHandler::configSetTry(const xencamera_req& aReq,
                                  xencamera_resp& aResp, bool is_set)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof aResp);
+        return;
+    }
+
     const xencamera_config_req *cfg_req = &aReq.req.config;
 
     v4l2_format fmt {0};
@@ -149,6 +166,11 @@ void CameraHandler::configGet(domid_t domId, const xencamera_req& aReq,
 void CameraHandler::frameRateSet(domid_t domId, const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof aResp);
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
     const xencamera_frame_rate_req *req = &aReq.req.frame_rate;
 
@@ -165,6 +187,11 @@ void CameraHandler::frameRateSet(domid_t domId, const xencamera_req& aReq,
 void CameraHandler::bufGetLayout(domid_t domId, const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof aResp);
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
     xencamera_buf_get_layout_resp *resp = &aResp.resp.buf_layout;
 
@@ -185,6 +212,10 @@ void CameraHandler::bufGetLayout(domid_t domId, const xencamera_req& aReq,
 
 size_t CameraHandler::bufGetImageSize(domid_t domId)
 {
+    if (!mCamera) {
+        return 0;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
 
     v4l2_format fmt = mCamera->formatGet();
@@ -195,6 +226,11 @@ size_t CameraHandler::bufGetImageSize(domid_t domId)
 void CameraHandler::ctrlEnum(domid_t domId, const xencamera_req& aReq,
                              xencamera_resp& aResp,std::string name)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof aResp);
+        return;
+    }
+
     const xencamera_index *req = &aReq.req.index;
     xencamera_ctrl_enum_resp *resp = &aResp.resp.ctrl_enum;
 
@@ -212,6 +248,11 @@ void CameraHandler::ctrlEnum(domid_t domId, const xencamera_req& aReq,
 void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
                             xencamera_resp& aResp, std::string name)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof aResp);
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
 
     /*
@@ -252,6 +293,10 @@ void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
 
 void CameraHandler::onFrameDoneCallback(int index, int size)
 {
+    if (!mCamera) {
+        return;
+    }
+
     auto data = mCamera->bufferGetData(index);
 
     DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) <<
@@ -264,6 +309,11 @@ void CameraHandler::onFrameDoneCallback(int index, int size)
 void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof aResp);
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
     const xencamera_buf_request *req = &aReq.req.buf_request;
     xencamera_buf_request *resp = &aResp.resp.buf_request;
@@ -294,6 +344,10 @@ void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
 
 void CameraHandler::bufRelease(domid_t domId)
 {
+    if (!mCamera) {
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
 
     DLOG(mLog, DEBUG) << "Frontend dom " << std::to_string(domId) <<
@@ -307,6 +361,11 @@ void CameraHandler::bufRelease(domid_t domId)
 void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
                                 xencamera_resp& aResp)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof(aResp));
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
 
     DLOG(mLog, DEBUG) << "Handle command [STREAM START] dom " <<
@@ -321,6 +380,11 @@ void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
 void CameraHandler::streamStop(domid_t domId, const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
+    if (!mCamera) {
+        memset(&aResp, 0, sizeof(aResp));
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mLock);
 
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP] dom " <<
