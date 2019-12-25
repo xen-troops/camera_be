@@ -91,7 +91,7 @@ void Backend::onNewFrontend(domid_t domId, uint16_t devId)
 {
     addFrontendHandler(FrontendHandlerPtr(
             new CameraFrontendHandler(mCameraManager, getDeviceName(),
-                                      getDomId(), domId, devId)));
+                                      domId, devId)));
 }
 
 void Backend::init()
