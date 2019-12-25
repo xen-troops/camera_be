@@ -25,10 +25,10 @@ class CameraFrontendHandler : public XenBackend::FrontendHandlerBase
 {
 public:
     CameraFrontendHandler(CameraManagerPtr cameraManager,
-                          const std::string& devName, domid_t beDomId,
-                          domid_t feDomId, uint16_t devId) :
+                          const std::string& devName,
+                          domid_t domId, uint16_t devId) :
         FrontendHandlerBase("CameraFrontend", devName,
-                            beDomId, feDomId, devId),
+                            domId, devId),
         mLog("CameraFrontend"),
         mCameraManager(cameraManager) {}
 
