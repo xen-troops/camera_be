@@ -294,6 +294,9 @@ void CommandHandler::ctrlEnum(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [CTRL ENUM] dom " <<
         std::to_string(mDomId);
 
+    if (mControls.empty())
+        throw XenBackend::Exception("No assigned controls", EINVAL);
+
     /*
      * The index of the control we have in the request is frontend
      * related, e.g. it is in the range of the assigned controls to
@@ -314,6 +317,9 @@ void CommandHandler::ctrlSet(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [SET CTRL] dom " <<
         std::to_string(mDomId);
 
+    if (mControls.empty())
+        throw XenBackend::Exception("No assigned controls", EINVAL);
+
     auto ctrlName = V4L2ToXen::ctrlGetNameXen(type);
 
     if (std::find(mControls.begin(), mControls.end(), ctrlName) ==
@@ -331,6 +337,9 @@ void CommandHandler::ctrlGet(const xencamera_req& req,
 
     DLOG(mLog, DEBUG) << "Handle command [GET CTRL] dom " <<
         std::to_string(mDomId);
+
+    if (mControls.empty())
+        throw XenBackend::Exception("No assigned controls", EINVAL);
 
     auto ctrlName = V4L2ToXen::ctrlGetNameXen(type);
 
@@ -355,6 +364,11 @@ void CommandHandler::streamStop(const xencamera_req& req,
 
 void CommandHandler::onCtrlChangeCallback(const std::string name, int64_t value)
 {
+    if (mControls.empty()) {
+        DLOG(mLog, DEBUG) << "No assigned controls, skipping";
+        return;
+    }
+
     auto ctrl = std::find(mControls.begin(), mControls.end(), name);
 
     if (ctrl == mControls.end()) {
