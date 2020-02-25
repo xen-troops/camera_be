@@ -561,6 +561,12 @@ void Camera::controlEnumerate()
         queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
 
+    if (errno == ENOTTY) {
+        LOG(mLog, WARNING) <<
+            "Control querying is not supported for device " << mDevPath;
+        return;
+    }
+
     /*
      * Querying after the last control must return EINVAL indicating
      * that there are no more controls.
