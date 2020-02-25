@@ -24,7 +24,7 @@ CameraHandler::CameraHandler(std::string uniqueId) :
 
     try {
         init(uniqueId);
-    } catch (...) {
+    } catch (const std::exception& e) {
         /*
           If initialization failed, we assume that camera HW does not work properly
           or is not connected.
@@ -32,6 +32,7 @@ CameraHandler::CameraHandler(std::string uniqueId) :
           - not create instance of Camera class
           - handle all requests but instead of interaction with HW will return 'empty' responses
         */
+        LOG(mLog, ERROR) << e.what();
         LOG(mLog, ERROR) << "Camera initialization failed, so we will run without hardware.";
         mCamera.reset();
     }
