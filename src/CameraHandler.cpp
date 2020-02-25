@@ -71,7 +71,6 @@ void CameraHandler::listenerReset(domid_t domId)
 void CameraHandler::configToXen(xencamera_config_resp *cfg_resp)
 {
     if (!mCamera) {
-        memset(cfg_resp, 0, sizeof(xencamera_config_resp));
         return;
     }
 
@@ -103,7 +102,6 @@ void CameraHandler::configSetTry(const xencamera_req& aReq,
                                  xencamera_resp& aResp, bool is_set)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof aResp);
         return;
     }
 
@@ -168,7 +166,6 @@ void CameraHandler::frameRateSet(domid_t domId, const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof aResp);
         return;
     }
 
@@ -189,7 +186,6 @@ void CameraHandler::bufGetLayout(domid_t domId, const xencamera_req& aReq,
                                  xencamera_resp& aResp)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof aResp);
         return;
     }
 
@@ -228,8 +224,14 @@ void CameraHandler::ctrlEnum(domid_t domId, const xencamera_req& aReq,
                              xencamera_resp& aResp,std::string name)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof aResp);
-        return;
+        /*
+         * The zeroed "successful" response won't pass sanity check of passed
+         * controls at the frontend side. So we cannot use zeroed response
+         * to make the frontend happy.
+         * What we can do here is to return an error which frontend is able
+         * to handle properly.
+         */
+        throw XenBackend::Exception("Emulate the absence of controls for the frontend", EINVAL);
     }
 
     const xencamera_index *req = &aReq.req.index;
@@ -250,7 +252,6 @@ void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
                             xencamera_resp& aResp, std::string name)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof aResp);
         return;
     }
 
@@ -311,7 +312,6 @@ void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof aResp);
         return;
     }
 
@@ -363,7 +363,6 @@ void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
                                 xencamera_resp& aResp)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof(aResp));
         return;
     }
 
@@ -382,7 +381,6 @@ void CameraHandler::streamStop(domid_t domId, const xencamera_req& aReq,
                                xencamera_resp& aResp)
 {
     if (!mCamera) {
-        memset(&aResp, 0, sizeof(aResp));
         return;
     }
 
