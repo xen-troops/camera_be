@@ -471,18 +471,32 @@ void Camera::formatEnumerate()
 v4l2_fract Camera::frameRateGet()
 {
      v4l2_streamparm parm {0};
+     v4l2_fract frameRate;
 
      parm.type = cV4L2BufType;
 
-     if (xioctl(VIDIOC_G_PARM, &parm) < 0)
-         throw Exception("Failed to call [VIDIOC_G_PARM] for device " +
-                         mDevPath, errno);
-
-     v4l2_fract frameRate;
-
-     /* Interval is inverse to frame rate. */
-     frameRate.numerator = parm.parm.capture.timeperframe.denominator;
-     frameRate.denominator = parm.parm.capture.timeperframe.numerator;
+     if (xioctl(VIDIOC_G_PARM, &parm) < 0) {
+         if (errno == ENOTTY) {
+             /*
+              * This means that "streaming parameters" is not supported
+              * for the underlaying device, but we can't just raise exception
+              * in that case (in comparison with frameRateSet() which is called
+              * from XENCAMERA_OP_FRAME_RATE_SET) as we are called from
+              * configToXen(), just throw an equivalent warning and set
+              * invalid num/denum values.
+              */
+             LOG(mLog, WARNING) << "Failed to call [VIDIOC_G_PARM] for device "
+                 << mDevPath << " (" << strerror(errno) << ")";
+             frameRate.numerator = 0;
+             frameRate.denominator = 0;
+         } else
+             throw Exception("Failed to call [VIDIOC_G_PARM] for device " +
+                             mDevPath, errno);
+     } else {
+         /* Interval is inverse to frame rate. */
+         frameRate.numerator = parm.parm.capture.timeperframe.denominator;
+         frameRate.denominator = parm.parm.capture.timeperframe.numerator;
+     }
 
      return frameRate;
 }
