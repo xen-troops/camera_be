@@ -16,6 +16,7 @@
 #include "V4L2ToXen.hpp"
 
 using namespace std::placeholders;
+using XenBackend::Exception;
 
 CameraHandler::CameraHandler(std::string uniqueId) :
     mLog("CameraHandler")
@@ -34,6 +35,8 @@ CameraHandler::CameraHandler(std::string uniqueId) :
         */
         LOG(mLog, ERROR) << e.what();
         LOG(mLog, ERROR) << "Camera initialization failed, so we will run without hardware.";
+        if (mMediaController)
+            mMediaController.reset();
         mCamera.reset();
     }
 }
@@ -51,7 +54,50 @@ void CameraHandler::init(std::string uniqueId)
     mFramerateSet = false;
     mBuffersAllocated.clear();
     mStreamingNow.clear();
-    mCamera.reset(new Camera(uniqueId));
+
+    /*
+     * Determine whether the media pipeline needs to be configured the first for
+     * the video device by parsing "unique-id" property which is the following:
+     * unique-id = video-id[:media-id]
+     * where the "media-id" field is optional and should begin with ":"
+     */
+    std::string videoId, mediaId;
+    parseUniqueId(uniqueId, videoId, mediaId);
+
+    if (!mediaId.empty()) {
+        LOG(mLog, DEBUG) << "media-id is not empty, media pipeline needs to be configured";
+
+        mMediaController = MediaControllerPtr(new MediaController(mediaId));
+    }
+
+    if (!videoId.empty())
+        mCamera.reset(new Camera(videoId));
+    else
+        throw Exception("video-id is empty", EINVAL);
+}
+
+void CameraHandler::parseUniqueId(const std::string& uniqueId,
+    std::string& videoId, std::string& mediaId)
+{
+    std::istringstream iss(uniqueId);
+    std::string token;
+
+    LOG(mLog, DEBUG) << "Parsing unique-id: " << uniqueId;
+
+    while (std::getline(iss, token, ',')) {
+        auto pos = token.find(":");
+        if (pos != std::string::npos) {
+            videoId = token.substr(0, pos);
+            mediaId = token.substr(++pos);
+        } else {
+            videoId = uniqueId;
+            mediaId = "";
+        }
+
+        break;
+    }
+
+    LOG(mLog, DEBUG) << "Got video-id: " << videoId << ", media-id: " << mediaId;
 }
 
 void CameraHandler::listenerSet(domid_t domId, Listeners listeners)
