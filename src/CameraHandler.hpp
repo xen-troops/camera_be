@@ -17,6 +17,7 @@
 #include <xen/io/cameraif.h>
 
 #include "Camera.hpp"
+#include "MediaController.hpp"
 #include "FrontendBuffer.hpp"
 
 class CameraHandler
@@ -76,6 +77,7 @@ private:
     std::mutex mLock;
 
     CameraPtr mCamera;
+    MediaControllerPtr mMediaController;
 
     /*
      * These help to make a decision if a requst from a frontend
@@ -112,6 +114,9 @@ private:
     void release();
 
     void onFrameDoneCallback(int index, int size);
+
+    void parseUniqueId(const std::string& uniqueId, std::string& videoId,
+        std::string& mediaId);
 };
 
 typedef std::shared_ptr<CameraHandler> CameraHandlerPtr;

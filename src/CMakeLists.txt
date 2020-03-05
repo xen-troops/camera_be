@@ -6,6 +6,8 @@ include(FindPkgConfig)
 
 pkg_check_modules (V4L2 REQUIRED libv4l2)
 
+pkg_check_modules (MEDIACTL REQUIRED libmediactl)
+
 ################################################################################
 # Includes
 ################################################################################
@@ -28,6 +30,7 @@ set(SOURCES
 	CommandHandler.cpp
 	FrontendBuffer.cpp
 	V4L2ToXen.cpp
+	MediaController.cpp
 )
 
 ################################################################################
@@ -47,5 +50,7 @@ set(XENBE_LIB xenbe)
 target_link_libraries(${PROJECT_NAME}
 	${XENBE_LIB}
 	${V4L2_LIBRARY}
+	${MEDIACTL_LIBRARIES}
+	v4l2subdev
 	pthread
 )
