@@ -158,6 +158,8 @@ void CameraHandler::configSetTry(const xencamera_req& aReq,
 
     v4l2_format fmt {0};
 
+    if (mCamera->isFieldInterlaced())
+        fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
     fmt.fmt.pix.pixelformat = cfg_req->pixel_format;
     fmt.fmt.pix.width = cfg_req->width;
     fmt.fmt.pix.height = cfg_req->height;
