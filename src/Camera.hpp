@@ -74,6 +74,8 @@ public:
     void controlSetValue(std::string name, signed int value);
     signed int controlGetValue(std::string name);
 
+    bool isFieldInterlaced() { return mFieldInterlaced; }
+
 protected:
     XenBackend::Log mLog;
 
@@ -124,6 +126,8 @@ protected:
     };
 
     std::vector<Format> mFormats;
+
+    bool mFieldInterlaced;
 
     void formatEnumerate();
 

@@ -158,6 +158,27 @@ bool Camera::isCaptureDevice()
         return false;
     }
 
+    /*
+     * Detect whether interlaced frame format is used at the very beginning
+     * in order to set proper v4l2_field in configSetTry().
+     */
+    switch (fmt.fmt.pix.field) {
+        case V4L2_FIELD_ANY:
+        case V4L2_FIELD_NONE:
+            mFieldInterlaced = false;
+            LOG(mLog, DEBUG) << mDevPath << " uses progressive frame format";
+            break;
+        case V4L2_FIELD_INTERLACED:
+        case V4L2_FIELD_INTERLACED_TB:
+        case V4L2_FIELD_INTERLACED_BT:
+            mFieldInterlaced = true;
+            LOG(mLog, DEBUG) << mDevPath << " uses interlaced frame format";
+            break;
+        default:
+            LOG(mLog, ERROR) << mDevPath << " uses an unsupported frame format";
+            return false;
+    }
+
     LOG(mLog, DEBUG) << mDevPath << " is a valid capture device";
 
     LOG(mLog, DEBUG) << "Driver:   " << cap.driver;
