@@ -350,6 +350,8 @@ void CameraHandler::onFrameDoneCallback(int index, int size)
         return;
     }
 
+    std::lock_guard<std::mutex> lock(mLock);
+
     auto data = mCamera->bufferGetData(index);
 
     DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) <<
