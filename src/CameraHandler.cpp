@@ -18,6 +18,8 @@
 using namespace std::placeholders;
 using XenBackend::Exception;
 
+extern std::string gCfgFileName;
+
 CameraHandler::CameraHandler(std::string uniqueId) :
     mLog("CameraHandler")
 {
@@ -67,7 +69,8 @@ void CameraHandler::init(std::string uniqueId)
     if (!mediaId.empty()) {
         LOG(mLog, DEBUG) << "media-id is not empty, media pipeline needs to be configured";
 
-        mMediaController = MediaControllerPtr(new MediaController(mediaId));
+        ConfigPtr config(new Config(gCfgFileName));
+        mMediaController = MediaControllerPtr(new MediaController(mediaId, config));
     }
 
     if (!videoId.empty())

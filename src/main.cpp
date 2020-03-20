@@ -28,6 +28,7 @@ using XenBackend::Log;
 using XenBackend::Utils;
 
 string gLogFileName;
+string gCfgFileName;
 
 int gRetStatus = EXIT_SUCCESS;
 
@@ -79,7 +80,7 @@ bool commandLineOptions(int argc, char *argv[])
 {
     int opt = -1;
 
-    while((opt = getopt(argc, argv, "v:l:fh?")) != -1) {
+    while((opt = getopt(argc, argv, "c:v:l:fh?")) != -1) {
         switch(opt) {
         case 'v':
             if (!Log::setLogMask(string(optarg)))
@@ -92,6 +93,10 @@ bool commandLineOptions(int argc, char *argv[])
 
         case 'f':
             Log::setShowFileAndLine(true);
+            break;
+
+        case 'c':
+            gCfgFileName = optarg;
             break;
 
         default:
@@ -130,8 +135,9 @@ int main(int argc, char *argv[])
             logFile.close();
         } else {
             cout << "Usage: " << argv[0]
-                << " [-l <file>] [-v <level>]"
+                << " [-c <file>] [-l <file>] [-v <level>]"
                 << endl;
+            cout << "\t-c -- config file" << endl;
             cout << "\t-l -- log file" << endl;
             cout << "\t-v -- verbose level in format: "
                 << "<module>:<level>;<module:<level>" << endl;

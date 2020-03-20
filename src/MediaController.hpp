@@ -12,11 +12,12 @@
 #include <memory>
 
 #include <xen/be/Log.hpp>
+#include "Config.hpp"
 
 class MediaController final
 {
 public:
-    MediaController(std::string devName);
+    MediaController(std::string devName, ConfigPtr config);
     ~MediaController();
 
     MediaController(MediaController&&) = delete;
@@ -26,6 +27,7 @@ public:
 private:
     XenBackend::Log mLog;
     const std::string mDevPath;
+    ConfigPtr mConfig;
 
     void init();
     void release();
