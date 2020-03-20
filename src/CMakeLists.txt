@@ -8,6 +8,8 @@ pkg_check_modules (V4L2 REQUIRED libv4l2)
 
 pkg_check_modules (MEDIACTL REQUIRED libmediactl)
 
+pkg_check_modules(CONFIG REQUIRED libconfig++)
+
 ################################################################################
 # Includes
 ################################################################################
@@ -31,6 +33,7 @@ set(SOURCES
 	FrontendBuffer.cpp
 	V4L2ToXen.cpp
 	MediaController.cpp
+	Config.cpp
 )
 
 ################################################################################
@@ -52,5 +55,6 @@ target_link_libraries(${PROJECT_NAME}
 	${V4L2_LIBRARY}
 	${MEDIACTL_LIBRARIES}
 	v4l2subdev
+	${CONFIG_LIBRARIES}
 	pthread
 )

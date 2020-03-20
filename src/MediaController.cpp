@@ -19,9 +19,10 @@ extern "C" {
 
 using XenBackend::Exception;
 
-MediaController::MediaController(std::string devName):
+MediaController::MediaController(std::string devName, ConfigPtr config):
     mLog("MediaController"),
-    mDevPath("/dev/" + devName)
+    mDevPath("/dev/" + devName),
+    mConfig(config)
 {
     try {
         init();
@@ -42,10 +43,7 @@ void MediaController::init()
 
     LOG(mLog, DEBUG) << "Initializing media device " << mDevPath;
 
-    /* TODO: Implement media pipeline configuration */
-    const std::string link = "'rcar_csi2 feaa0000.csi2':1 -> 'VIN0 output':0 [1]";
-    const std::string source_fmt = "'adv748x 4-0070 hdmi':1 [fmt:RGB888_1X24/1024x768 field:none]";
-    const std::string sink_fmt = "'rcar_csi2 feaa0000.csi2':1 [fmt:RGB888_1X24/1024x768 field:none]";
+    const auto& config = mConfig->getPipelineConfig();
 
     auto throwIfFalse = [&, this](bool res, std::string&& sMsg, std::string dMsg) {
         if (!res) {
@@ -65,18 +63,18 @@ void MediaController::init()
     ret = media_reset_links(m_mediaDevice);
     throwIfFalse(!ret, "Failed to reset links", "");
 
-    ret = media_parse_setup_links(m_mediaDevice, link.c_str());
-    throwIfFalse(!ret, "Failed to setup link ", link);
+    ret = media_parse_setup_links(m_mediaDevice, config.link.c_str());
+    throwIfFalse(!ret, "Failed to setup link ", config.link);
 
     /*
      * When the pipeline is configured it's time to propagate the format
      * to the video source/sink.
      */
-    ret = v4l2_subdev_parse_setup_formats(m_mediaDevice, source_fmt.c_str());
-    throwIfFalse(!ret, "Failed to setup source format ", source_fmt);
+    ret = v4l2_subdev_parse_setup_formats(m_mediaDevice, config.source_fmt.c_str());
+    throwIfFalse(!ret, "Failed to setup source format ", config.source_fmt);
 
-    ret = v4l2_subdev_parse_setup_formats(m_mediaDevice, sink_fmt.c_str());
-    throwIfFalse(!ret, "Failed to setup sink format ", sink_fmt);
+    ret = v4l2_subdev_parse_setup_formats(m_mediaDevice, config.sink_fmt.c_str());
+    throwIfFalse(!ret, "Failed to setup sink format ", config.sink_fmt);
 }
 
 void MediaController::release()
