@@ -51,18 +51,21 @@ void Config::readPipelineConfig(PipelineConfig& config)
 
     try
     {
-        config.link.clear();
+        config.link1.clear();
+        config.link2.clear();
         config.source_fmt.clear();
         config.sink_fmt.clear();
 
         Setting& setting = mConfig.lookup(sectionName);
 
-        config.link = static_cast<const char*>(setting.lookup("link"));
+        config.link1 = static_cast<const char*>(setting.lookup("link1"));
+        config.link2 = static_cast<const char*>(setting.lookup("link2"));
         config.source_fmt = static_cast<const char*>(setting.lookup("source_fmt"));
         config.sink_fmt = static_cast<const char*>(setting.lookup("sink_fmt"));
 
         LOG(mLog, DEBUG) << "Media pipeline configuration";
-        LOG(mLog, DEBUG) << "link:       " << config.link;
+        LOG(mLog, DEBUG) << "link1:      " << config.link1;
+        LOG(mLog, DEBUG) << "link2:      " << config.link2;
         LOG(mLog, DEBUG) << "source_fmt: " << config.source_fmt;
         LOG(mLog, DEBUG) << "sink_fmt:   " << config.sink_fmt;
     }
