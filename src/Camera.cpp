@@ -410,14 +410,14 @@ void Camera::formatSet(v4l2_format fmt)
                         mDevPath, errno);
 }
 
-void Camera::formatTry(v4l2_format fmt)
+void Camera::formatTry(v4l2_format *fmt)
 {
-    LOG(mLog, DEBUG) << "Try format " << fmt.fmt.pix.width <<
-        "x" << fmt.fmt.pix.height;
+    LOG(mLog, DEBUG) << "Try format " << fmt->fmt.pix.width <<
+        "x" << fmt->fmt.pix.height;
 
-    fmt.type = cV4L2BufType;
+    fmt->type = cV4L2BufType;
 
-    if (xioctl(VIDIOC_TRY_FMT, &fmt) < 0)
+    if (xioctl(VIDIOC_TRY_FMT, fmt) < 0)
         throw Exception("Failed to call [VIDIOC_TRY_FMT] for device " +
                         mDevPath, errno);
 }

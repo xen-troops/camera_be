@@ -155,6 +155,7 @@ void CameraHandler::configSetTry(const xencamera_req& aReq,
     }
 
     const xencamera_config_req *cfg_req = &aReq.req.config;
+    xencamera_config_resp *cfg_resp = &aResp.resp.config;
 
     v4l2_format fmt {0};
 
@@ -167,9 +168,23 @@ void CameraHandler::configSetTry(const xencamera_req& aReq,
     if (is_set)
         mCamera->formatSet(fmt);
     else
-        mCamera->formatTry(fmt);
+        mCamera->formatTry(&fmt);
 
     configToXen(&aResp.resp.config);
+
+    /*
+     * For CONFIG_VALIDATE we need to return the details of the desired format
+     * (which is tried by VIDIOC_TRY_FMT), but not a current one (VIDIOC_G_FMT).
+     */
+    if (!is_set) {
+        cfg_resp->pixel_format = fmt.fmt.pix.pixelformat;
+        cfg_resp->width = fmt.fmt.pix.width;
+        cfg_resp->height = fmt.fmt.pix.height;
+        cfg_resp->colorspace = V4L2ToXen::colorspaceToXen(fmt.fmt.pix.colorspace);
+        cfg_resp->xfer_func = V4L2ToXen::xferToXen(fmt.fmt.pix.xfer_func);
+        cfg_resp->ycbcr_enc = V4L2ToXen::ycbcrToXen(fmt.fmt.pix.ycbcr_enc);
+        cfg_resp->quantization = V4L2ToXen::quantizationToXen(fmt.fmt.pix.quantization);
+    }
 }
 
 void CameraHandler::configSet(domid_t domId, const xencamera_req& aReq,
