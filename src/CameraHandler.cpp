@@ -19,6 +19,7 @@ using namespace std::placeholders;
 using XenBackend::Exception;
 
 extern std::string gCfgFileName;
+static int dom_cnt;
 
 CameraHandler::CameraHandler(std::string uniqueId) :
     mLog("CameraHandler")
@@ -41,6 +42,7 @@ CameraHandler::CameraHandler(std::string uniqueId) :
             mMediaController.reset();
         mCamera.reset();
     }
+    dom_cnt ++;
 }
 
 CameraHandler::~CameraHandler()
@@ -48,6 +50,7 @@ CameraHandler::~CameraHandler()
     LOG(mLog, DEBUG) << "Delete camera handler";
 
     release();
+    dom_cnt --;
 }
 
 void CameraHandler::init(std::string uniqueId)
@@ -199,7 +202,8 @@ void CameraHandler::configSet(domid_t domId, const xencamera_req& aReq,
         configToXen(&aResp.resp.config);
     } else {
         configSetTry(aReq, aResp, true);
-        mFormatSet = true;
+        if (dom_cnt > 1)
+            mFormatSet = true;
     }
 }
 
