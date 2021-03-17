@@ -63,8 +63,11 @@ void MediaController::init()
     ret = media_reset_links(m_mediaDevice);
     throwIfFalse(!ret, "Failed to reset links", "");
 
-    ret = media_parse_setup_links(m_mediaDevice, config.link.c_str());
-    throwIfFalse(!ret, "Failed to setup link ", config.link);
+    ret = media_parse_setup_links(m_mediaDevice, config.link1.c_str());
+    throwIfFalse(!ret, "Failed to setup link1 ", config.link1);
+
+    ret = media_parse_setup_links(m_mediaDevice, config.link2.c_str());
+    throwIfFalse(!ret, "Failed to setup link2 ", config.link2);
 
     /*
      * When the pipeline is configured it's time to propagate the format

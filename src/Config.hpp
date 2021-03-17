@@ -55,7 +55,8 @@ public:
      *         using "-V" option.
      */
     struct PipelineConfig {
-        std::string link;
+        std::string link1;
+        std::string link2;
         std::string source_fmt;
         std::string sink_fmt;
     };
