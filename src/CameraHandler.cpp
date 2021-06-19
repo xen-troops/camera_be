@@ -456,14 +456,16 @@ void CameraHandler::streamStop(domid_t domId, const xencamera_req& aReq,
         return;
     }
 
-    std::lock_guard<std::mutex> lock(mLock);
+    std::unique_lock<std::mutex> lock(mLock);
 
     DLOG(mLog, DEBUG) << "Handle command [STREAM STOP] dom " <<
         std::to_string(domId);
 
     mStreamingNow.erase(domId);
-    if (!mStreamingNow.size())
+    if (!mStreamingNow.size()) {
+        lock.unlock();
         mCamera->streamStop();
+    }
 }
 
 void CameraHandler::release()
