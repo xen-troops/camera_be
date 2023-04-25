@@ -9,6 +9,7 @@
 #define SRC_FRONTENDBUFFER_HPP_
 
 #include <memory>
+#include <atomic>
 
 #include <xen/be/Log.hpp>
 #include <xen/be/XenGnttab.hpp>
@@ -26,6 +27,20 @@ public:
     }
 
     void copyBuffer(void *data, size_t size);
+    void* getBuffer() {
+        return mBuffer->get();
+    }
+    size_t getSize() {
+        return mBuffer->size();
+    }
+
+    // Flag to signal that buffer is in use by hardware
+    std::atomic<bool> mInHw;
+    // Flag to signal that buffer is queued for processing
+    std::atomic<bool> mInQueue;
+    // Flag to signal that buffer is queued for deletion
+    std::atomic<bool> mInCleanup;
+    int mLastIndex = -1;
 
 private:
     XenBackend::Log mLog;
@@ -44,6 +59,6 @@ private:
                        std::vector<grant_ref_t>& refs);
 };
 
-typedef std::unique_ptr<FrontendBuffer> FrontendBufferPtr;
+typedef std::shared_ptr<FrontendBuffer> FrontendBufferPtr;
 
 #endif /* SRC_FRONTENDBUFFER_HPP_ */

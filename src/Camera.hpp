@@ -13,11 +13,14 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <condition_variable>
 
 #include <linux/videodev2.h>
 
 #include <xen/be/Log.hpp>
 #include <xen/be/Utils.hpp>
+
+#include "FrontendBuffer.hpp"
 
 class Camera
 {
@@ -43,7 +46,7 @@ public:
     void *bufferGetData(int index);
 
     /* Stream related functionlity. */
-    typedef std::function<void(int, int)> FrameDoneCallback;
+    typedef std::function<void(int, unsigned long, int)> FrameDoneCallback;
 
     int streamAlloc(int numBuffers);
     void streamRelease();
@@ -75,6 +78,8 @@ public:
     signed int controlGetValue(std::string name);
 
     bool isFieldInterlaced() { return mFieldInterlaced; }
+    void bufRegister(FrontendBufferPtr buf);
+    void bufUnregister(FrontendBufferPtr buf);
 
 protected:
     XenBackend::Log mLog;
@@ -84,9 +89,9 @@ protected:
     int mFd;
 
     static const v4l2_buf_type cV4L2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    v4l2_memory cMemoryType = V4L2_MEMORY_MMAP;
 
     std::vector<std::string> mVideoNodes;
+    std::vector<bool> mQueueStatus;
 
     std::thread mThread;
 
@@ -100,6 +105,17 @@ protected:
     };
 
     std::vector<Buffer> mBuffers;
+    std::vector<FrontendBufferPtr> mFrontendBuffers;
+    std::mutex mFrontendBuffersLock;
+
+    std::condition_variable mFrameDone;
+    std::mutex mFrameDoneLock;
+
+    std::atomic<bool> mStreaming;
+    int mLastIndex;
+    int mSavedIndex;
+
+    int mNumRequestedBuffers;
 
     void init();
     void release();
@@ -149,6 +165,9 @@ protected:
     signed int controlGetValue(int v4l2_cid);
 
     void eventThread();
+
+    v4l2_memory getMemType();
+    void checkQueueHealth();
 };
 
 typedef std::shared_ptr<Camera> CameraPtr;

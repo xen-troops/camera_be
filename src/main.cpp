@@ -29,6 +29,7 @@ using XenBackend::Utils;
 
 string gLogFileName;
 string gCfgFileName;
+bool gZeroCopy = true;
 
 int gRetStatus = EXIT_SUCCESS;
 
@@ -80,7 +81,7 @@ bool commandLineOptions(int argc, char *argv[])
 {
     int opt = -1;
 
-    while((opt = getopt(argc, argv, "c:v:l:fh?")) != -1) {
+    while((opt = getopt(argc, argv, "c:v:l:fhz?")) != -1) {
         switch(opt) {
         case 'v':
             if (!Log::setLogMask(string(optarg)))
@@ -97,6 +98,10 @@ bool commandLineOptions(int argc, char *argv[])
 
         case 'c':
             gCfgFileName = optarg;
+            break;
+        case 'z':
+            gZeroCopy = false;
+            LOG("Main", INFO) << "Disabling zero copy";
             break;
 
         default:

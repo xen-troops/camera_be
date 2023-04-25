@@ -19,6 +19,7 @@ using namespace std::placeholders;
 using XenBackend::Exception;
 
 extern std::string gCfgFileName;
+extern bool gZeroCopy;
 static int dom_cnt;
 
 CameraHandler::CameraHandler(std::string uniqueId) :
@@ -363,21 +364,30 @@ void CameraHandler::ctrlSet(domid_t domId, const xencamera_req& aReq,
     }
 }
 
-void CameraHandler::onFrameDoneCallback(int index, int size)
+void CameraHandler::onFrameDoneCallback(int index, unsigned long cdata, int size)
 {
+    void* data;
+
     if (!mCamera) {
         return;
     }
 
     std::lock_guard<std::mutex> lock(mLock);
 
-    auto data = mCamera->bufferGetData(index);
+    if (gZeroCopy)
+        data = (void*)cdata;
+    else
+        data = mCamera->bufferGetData(index);
 
     DLOG(mLog, DEBUG) << "Frame " << std::to_string(index) <<
         " backend index " << std::to_string(index);
 
     for (auto &listener : mListeners)
-        listener.second.frame(static_cast<uint8_t *>(data), size);
+        listener.second.frame(static_cast<uint8_t *>(data), size, false);
+
+    if (gZeroCopy)
+        for (auto &listener : mListeners)
+            listener.second.frame(static_cast<uint8_t *>(data), size, true);
 }
 
 void CameraHandler::bufRequest(domid_t domId, const xencamera_req& aReq,
@@ -431,6 +441,21 @@ void CameraHandler::bufRelease(domid_t domId)
         mCamera->streamRelease();
 }
 
+void CameraHandler::bufRegister(FrontendBufferPtr buf) {
+    if (!mCamera) {
+        return;
+    }
+
+    mCamera->bufRegister(buf);
+}
+void CameraHandler::bufUnregister(FrontendBufferPtr buf) {
+    if (!mCamera) {
+        return;
+    }
+
+    mCamera->bufUnregister(buf);
+}
+
 void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
                                 xencamera_resp& aResp)
 {
@@ -445,7 +470,7 @@ void CameraHandler::streamStart(domid_t domId, const xencamera_req& aReq,
 
     if (!mStreamingNow.size())
         mCamera->streamStart(bind(&CameraHandler::onFrameDoneCallback,
-                                  this, _1, _2));
+                                  this, _1, _2, _3));
     mStreamingNow.emplace(domId, true);
 }
 
