@@ -17,6 +17,8 @@
 
 using namespace std::placeholders;
 
+extern bool gZeroCopy;
+
 std::unordered_map<int, CommandHandler::CommandFn> CommandHandler::sCmdTable =
 {
     { XENCAMERA_OP_CONFIG_SET,          &CommandHandler::configSet },
@@ -113,7 +115,7 @@ void CommandHandler::init(std::string ctrls)
     mCameraHandler->listenerSet(mDomId,
         CameraHandler::Listeners {
             .frame = bind(&CommandHandler::onFrameDoneCallback,
-                          this, _1, _2),
+                          this, _1, _2, _3),
             .control = bind(&CommandHandler::onCtrlChangeCallback,
                             this, _1, _2),
         });
@@ -217,6 +219,8 @@ void CommandHandler::bufCreate(const xencamera_req& req,
     mBuffers[create->index] = FrontendBufferPtr(new FrontendBuffer(mDomId,
                                                                    imageSize,
                                                                    req));
+    if (gZeroCopy)
+        mCameraHandler->bufRegister(mBuffers[create->index]);
 }
 
 void CommandHandler::bufDestroy(const xencamera_req& req,
@@ -227,6 +231,8 @@ void CommandHandler::bufDestroy(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [BUF DESTROY] dom " <<
         std::to_string(mDomId) << " index " << std::to_string(index);
 
+    if (gZeroCopy)
+        mCameraHandler->bufUnregister(mBuffers[index]);
     mBuffers.erase(index);
     /*
      * If this was the last buffer then tell the CameraHandler it might
@@ -245,6 +251,8 @@ void CommandHandler::bufQueue(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [BUF QUEUE] dom " <<
         std::to_string(mDomId) << " index " << std::to_string(index);
 
+    if (gZeroCopy)
+        mBuffers[index]->mInQueue = true;
     mQueuedBuffers.push_back(index);
 }
 
@@ -257,18 +265,56 @@ void CommandHandler::bufDequeue(const xencamera_req& req,
     DLOG(mLog, DEBUG) << "Handle command [BUF DEQUEUE] dom " <<
         std::to_string(mDomId) << " index " << std::to_string(index);
 
+    if (gZeroCopy)
+        mBuffers[index]->mInQueue = false;
     mQueuedBuffers.remove(index);
 }
 
-void CommandHandler::onFrameDoneCallback(uint8_t *data, size_t size)
+void CommandHandler::onFrameDoneCallback(uint8_t *data, size_t size, bool do_hw)
 {
     std::lock_guard<std::mutex> lock(mLock);
     int index;
+    bool copy = false;
 
     if (mQueuedBuffers.empty())
         return;
 
-    index = mQueuedBuffers.front();
+    if (gZeroCopy) {
+        index = -1;
+
+        // First try to find the correspinding buffer in
+        // the queue
+        for (auto i: mQueuedBuffers) {
+
+            if (mBuffers[i]->getBuffer() == data) {
+                index = i;
+                break;
+            }
+        }
+
+        // If not found, try to find a buffer for a copy
+        if (index == -1) {
+            for (auto i: mQueuedBuffers) {
+                if (mBuffers[i]->mInHw == false) {
+                    index = i;
+                    copy = true;
+                    mBuffers[i]->mInQueue = false;
+                    break;
+                }
+            }
+        }
+
+        if (index == -1) {
+            LOG(mLog, ERROR) << "No buffer found " << std::to_string(mDomId);
+            return;
+        }
+    } else {
+        index = mQueuedBuffers.front();
+        copy = true;
+    }
+
+    if ((!copy && !do_hw) || (copy && do_hw))
+        return;
 
     DLOG(mLog, DEBUG) << "Send event [FRAME] dom " <<
         std::to_string(mDomId) << " index " << std::to_string(index);
@@ -281,7 +327,8 @@ void CommandHandler::onFrameDoneCallback(uint8_t *data, size_t size)
     event.evt.frame_avail.seq_num = mSequence++;
     event.id = mEventId++;
 
-    mBuffers[index]->copyBuffer(data, size);
+    if  (copy)
+        mBuffers[index]->copyBuffer(data, size);
 
     mEventBuffer->sendEvent(event);
 }

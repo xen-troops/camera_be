@@ -26,12 +26,17 @@
 using XenBackend::Exception;
 using XenBackend::PollFd;
 
+extern bool gZeroCopy;
+
 Camera::Camera(const std::string devName):
     mLog("Camera"),
     mUniqueId(devName),
     mDevPath("/dev/" + devName),
     mFd(-1),
-    mFrameDoneCallback(nullptr)
+    mFrameDoneCallback(nullptr),
+    mStreaming(false),
+    mLastIndex(-1),
+    mSavedIndex(0)
 {
     try {
         init();
@@ -212,7 +217,7 @@ int Camera::bufferRequest(int numBuffers)
 
     req.count = numBuffers;
     req.type = cV4L2BufType;
-    req.memory = cMemoryType;
+    req.memory = getMemType();
 
     if (xioctl(VIDIOC_REQBUFS, &req) < 0)
         throw Exception("Failed to call [VIDIOC_REQBUFS] for device " +
@@ -220,8 +225,60 @@ int Camera::bufferRequest(int numBuffers)
 
     LOG(mLog, DEBUG) << "Initialized " << req.count <<
         " buffers for device " << mDevPath;
+    
+    mQueueStatus.clear();
+    for (int i = 0; i < req.count; i++)
+        mQueueStatus.push_back(false);
 
     return req.count;
+}
+
+void Camera::bufRegister(FrontendBufferPtr buf)
+{
+    if (!gZeroCopy)
+        return;
+
+    std::unique_lock<std::mutex> lock(mFrontendBuffersLock);
+    mFrontendBuffers.push_back(buf);
+}
+
+void Camera::bufUnregister(FrontendBufferPtr buf)
+{
+    if (!gZeroCopy)
+        return;
+
+    buf->mInCleanup = true;
+
+    std::unique_lock<std::mutex> fdlock(mFrameDoneLock);
+    while(buf->mInHw) {
+        mFrameDone.wait(fdlock);
+    }
+    fdlock.unlock();
+
+    std::unique_lock<std::mutex> lock(mFrontendBuffersLock);
+    for(int i = 0; i < mFrontendBuffers.size(); i++) {
+        if(mFrontendBuffers[i]->getBuffer() == buf->getBuffer()) {
+            mFrontendBuffers.erase(mFrontendBuffers.begin() + i);
+            break;
+        }
+    }
+    lock.unlock();
+
+    fdlock.lock();
+    while (mStreaming) {
+        mFrameDone.wait(fdlock);
+        if (mLastIndex == buf->mLastIndex || buf->mLastIndex == -1) {
+            break;
+        }
+    }
+}
+
+v4l2_memory Camera::getMemType ()
+{
+    if (gZeroCopy) 
+        return V4L2_MEMORY_USERPTR;
+    else
+        return V4L2_MEMORY_MMAP;
 }
 
 v4l2_buffer Camera::bufferQuery(int index)
@@ -229,7 +286,7 @@ v4l2_buffer Camera::bufferQuery(int index)
     v4l2_buffer buf {0};
 
     buf.type = cV4L2BufType;
-    buf.memory = cMemoryType;
+    buf.memory = getMemType();
     buf.index = index;
 
     if (xioctl(VIDIOC_QUERYBUF, &buf) < 0)
@@ -239,6 +296,25 @@ v4l2_buffer Camera::bufferQuery(int index)
     return buf;
 }
 
+void Camera::checkQueueHealth()
+{
+    int index = -1;
+    int count = 0;
+
+    for (int i = 0; i < mQueueStatus.size(); i++) {
+        if (mQueueStatus[(mSavedIndex + i) % mQueueStatus.size()]) {
+            count++;
+        } else {
+            index = (mSavedIndex + i) % mQueueStatus.size();
+        }
+    }
+
+    if (count < mNumRequestedBuffers && index != -1) {
+        mSavedIndex = (mSavedIndex + 1) % mQueueStatus.size();
+        bufferQueue(index);
+    }
+}
+
 void Camera::bufferQueue(int index)
 {
     v4l2_buffer buf {0};
@@ -246,12 +322,50 @@ void Camera::bufferQueue(int index)
     DLOG(mLog, DEBUG) << "[VIDIOC_QBUF] index " << std::to_string(index) <<
         " for device " << mDevPath;
     buf.type = cV4L2BufType;
-    buf.memory = cMemoryType;
+    buf.memory = getMemType();
     buf.index = index;
+    std::unique_lock<std::mutex> lock(mFrontendBuffersLock);
 
-    if (xioctl(VIDIOC_QBUF, &buf) < 0)
-        throw Exception("Failed to call [VIDIOC_QBUF] for device " +
-                        mDevPath, errno);
+    if (gZeroCopy) {
+        // Find a free buffer to queue
+        for (auto &b : mFrontendBuffers) {
+            if (b->mInQueue && !b->mInHw && !b->mInCleanup) {
+                buf.m.userptr = (unsigned long)b->getBuffer();
+                buf.length = b->getSize();
+                b->mInHw = true;
+                b->mLastIndex = index;
+                break;
+            }
+        }
+
+        if (buf.m.userptr == 0) {
+            LOG(mLog, DEBUG) << "Failed to find a free buffer to queue, skipping";
+            return;
+        }
+    }
+
+    if (xioctl(VIDIOC_QBUF, &buf) < 0) {
+        if (gZeroCopy) {
+            for (auto &b : mFrontendBuffers) {
+                if (buf.m.userptr == (unsigned long)b->getBuffer()) {
+                    b->mInHw = false;
+                }
+            }
+        }
+
+        if (EFAULT == errno)
+            return;
+        else
+            throw Exception("Failed to call [VIDIOC_QBUF] for device " +
+                            mDevPath, errno);
+    }
+
+    mFrontendBuffersLock.unlock();
+
+    std::unique_lock<std::mutex> fdlock(mFrameDoneLock);
+    mLastIndex = index;
+    mFrameDone.notify_all();
+    mQueueStatus[index] = true;
 }
 
 v4l2_buffer Camera::bufferDequeue()
@@ -260,11 +374,25 @@ v4l2_buffer Camera::bufferDequeue()
 
     DLOG(mLog, DEBUG) << "[VIDIOC_DQBUF] for device " << mDevPath;
     buf.type = cV4L2BufType;
-    buf.memory = cMemoryType;
+    buf.memory = getMemType();
 
     if (xioctl(VIDIOC_DQBUF, &buf) < 0)
         throw Exception("Failed to call [VIDIOC_DQBUF] for device " +
                         mDevPath, errno);
+
+    mQueueStatus[buf.index] = false;
+    if (gZeroCopy) {
+        // Find and mark the buffer that was dequeued
+        std::unique_lock<std::mutex> lock(mFrontendBuffersLock);
+        for (auto &b : mFrontendBuffers) {
+            if ((unsigned long)b->getBuffer() == buf.m.userptr) {
+                b->mInHw = false;
+                b->mInQueue = false;
+                b->mLastIndex = buf.index;
+                break;
+            }
+        }
+    }
 
     return buf;
 }
@@ -301,8 +429,10 @@ void Camera::eventThread()
             v4l2_buffer buf = bufferDequeue();
 
             if (mFrameDoneCallback)
-                mFrameDoneCallback(buf.index, buf.bytesused);
+                mFrameDoneCallback(buf.index, buf.m.userptr, buf.bytesused);
             bufferQueue(buf.index);
+            if (gZeroCopy)
+                checkQueueHealth();
         }
     } catch(const std::exception& e) {
         LOG(mLog, ERROR) << e.what();
@@ -315,6 +445,11 @@ void Camera::streamStart(FrameDoneCallback clb)
 {
     mFrameDoneCallback = clb;
 
+    // Initial buffers queue
+    for (int i = 0; i < mNumRequestedBuffers; i++) {
+        bufferQueue(i);
+    }
+
     mThread = std::thread(&Camera::eventThread, this);
 
     v4l2_buf_type type = cV4L2BufType;
@@ -322,6 +457,7 @@ void Camera::streamStart(FrameDoneCallback clb)
     if (xioctl(VIDIOC_STREAMON, &type) < 0)
         LOG(mLog, ERROR) << "Failed to start streaming on device " << mDevPath;
 
+    mStreaming = true;
     LOG(mLog, DEBUG) << "Started streaming on device " << mDevPath;
 }
 
@@ -338,47 +474,66 @@ void Camera::streamStop()
     if (xioctl(VIDIOC_STREAMOFF, &type) < 0)
         LOG(mLog, ERROR) << "Failed to stop streaming for " << mDevPath;
 
+    mStreaming = false;
+
+    if (gZeroCopy) {
+        // Request 0 buffers so kernel unpins shared pages and makes them
+        // safe for unmapping
+        bufferRequest(0);
+
+        std::unique_lock<std::mutex> lock(mFrontendBuffersLock);
+        for (auto &b: mFrontendBuffers) {
+            b->mInHw = false;
+            b->mLastIndex = -1;
+        }
+        lock.unlock();
+        std::unique_lock<std::mutex> fdlock(mFrameDoneLock);
+        mFrameDone.notify_all();
+    }
+
     LOG(mLog, DEBUG) << "Stopped streaming on device " << mDevPath;
 }
 
 int Camera::streamAlloc(int numBuffers)
 {
-    int numAllocated = bufferRequest(numBuffers);
+    mNumRequestedBuffers = bufferRequest(numBuffers);
 
-    if (numAllocated != numBuffers)
-        LOG(mLog, WARNING) << "Allocated " << numAllocated <<
+    if (mNumRequestedBuffers != numBuffers)
+        LOG(mLog, WARNING) << "Allocated " << mNumRequestedBuffers <<
             ", expected " << numBuffers;
 
-    for (int i = 0; i < numAllocated; i++) {
-        v4l2_buffer buf = bufferQuery(i);
+    if (!gZeroCopy) {
+        for (int i = 0; i < mNumRequestedBuffers; i++) {
+            v4l2_buffer buf = bufferQuery(i);
 
-        void *start = mmap(nullptr, buf.length, PROT_READ | PROT_WRITE,
-                           MAP_SHARED, mFd, buf.m.offset);
+            void *start = mmap(nullptr, buf.length, PROT_READ | PROT_WRITE,
+                            MAP_SHARED, mFd, buf.m.offset);
 
-        if (start == MAP_FAILED)
-            throw Exception("Failed to mmap buffer for device " +
-                            mDevPath, errno);
+            if (start == MAP_FAILED)
+                throw Exception("Failed to mmap buffer for device " +
+                                mDevPath, errno);
 
-        bufferQueue(i);
-
-        mBuffers.push_back(
-            {
-                .size = static_cast<size_t>(buf.length),
-                .data = start
-            }
-        );
+            mBuffers.push_back(
+                {
+                    .size = static_cast<size_t>(buf.length),
+                    .data = start
+                }
+            );
+        }
     }
 
-    return numAllocated;
+    return mNumRequestedBuffers;
 }
 
 void Camera::streamRelease()
 {
-    DLOG(mLog, DEBUG) << "Release all buffers";
-    for (auto const& buffer: mBuffers)
-        munmap(buffer.data, buffer.size);
+    if (!gZeroCopy) {
+        DLOG(mLog, DEBUG) << "Release all buffers";
+        for (auto const& buffer: mBuffers)
+            munmap(buffer.data, buffer.size);
 
-    mBuffers.clear();
+        mBuffers.clear();
+    }
 }
 
 /*

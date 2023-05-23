@@ -60,7 +60,7 @@ public:
                     xencamera_resp& aResp);
 
     /* data, size */
-    typedef std::function<void(uint8_t *, size_t)> FrameListener;
+    typedef std::function<void(uint8_t *, size_t, bool)> FrameListener;
     /* name, value */
     typedef std::function<void(const std::string, int64_t)> ControlListener;
 
@@ -71,6 +71,9 @@ public:
 
     void listenerSet(domid_t domId, Listeners listeners);
     void listenerReset(domid_t domId);
+
+    void bufRegister(FrontendBufferPtr buf);
+    void bufUnregister(FrontendBufferPtr buf);
 
 private:
     XenBackend::Log mLog;
@@ -113,7 +116,7 @@ private:
     void init(std::string uniqueId);
     void release();
 
-    void onFrameDoneCallback(int index, int size);
+    void onFrameDoneCallback(int index, unsigned long cdata, int size);
 
     void parseUniqueId(const std::string& uniqueId, std::string& videoId,
         std::string& mediaId);

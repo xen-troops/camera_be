@@ -14,6 +14,9 @@ using XenBackend::Exception;
 
 FrontendBuffer::FrontendBuffer(domid_t domId, size_t size,
                                const xencamera_req& req) :
+    mInHw(false),
+    mInQueue(false),
+    mInCleanup(false),
     mLog("FrontendBuffer"),
     mDomId(domId)
 {
